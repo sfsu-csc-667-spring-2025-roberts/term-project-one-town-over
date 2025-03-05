@@ -1,7 +1,7 @@
 <img src="onetown.png" alt="One Town Over" width="400"/>
 ## Team Members
 
-1. Nathan Donat Filliod 
+1. Nathan Donat Filliod <3
 2. Heber Trujillo Cruz
 3. Aaron Singh
 4. Jack Richards
