@@ -1,40 +1,36 @@
-import express from "express";
+import express, { Request, Response } from 'express';
+import path from 'path';
+import cors from 'cors';
 import dotenv from "dotenv";
-import { timeMiddleware } from "./middleware/time";
-import rootRoutes from "./routes/root";
-import httpErrors from "http-errors";
-import * as path from "path";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+
+import { timeMiddleware } from "./middleware/time";
+import rootRoutes from "./routes/root";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.Port || 3000;
+const port: number = 5000;
 
-app.use(morgan("dev"));
-
+app.use(cors());
 app.use(express.json());
-
-app.use(express.urlencoded({ extended: false }));
-
 app.use(timeMiddleware);
-
-app.use(express.static(path.join(process.cwd(), "src", "public")));
-
-app.use(express.static(path.join(process.cwd(), "src", "public")));
-
+app.use(morgan("dev"));
+app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 app.set("views", path.join(process.cwd(), "src", "server", "views"));
 app.set("view engine", "ejs");
 
-app.use("/", rootRoutes);
+app.use("/api", rootRoutes);
 
-app.use((_request, response, next) => {
-  next(httpErrors(404));
+app.use(express.static(path.join(process.cwd(), "..", "frontend", "build")));
+
+app.get('/', (req: Request, res: Response): void => {
+  res.sendFile(path.join(process.cwd(), "..", "frontend", "build", "index.html"));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, '0.0.0.0', (): void => {
+  console.log(`Server is running on http://localhost:${port}`);
 });

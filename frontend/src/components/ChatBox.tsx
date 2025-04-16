@@ -17,7 +17,7 @@ interface ChatBoxProps {
 const ChatBox: React.FC<ChatBoxProps> = ({
   messages,
   onSendMessage,
-  currentUserId,
+  // currentUserId,
   currentUsername,
 }) => {
   const [newMessage, setNewMessage] = useState("");
