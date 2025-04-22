@@ -7,10 +7,19 @@ import * as path from "path";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 
+const pool = require("./db");
+
 dotenv.config();
 
 const app = express();
 const PORT = process.env.Port || 3000;
+
+const myfunc = async () => {
+  const result = await pool.query('SELECT * FROM users;');
+  console.log("Result: ", result);
+};
+
+myfunc();
 
 app.use(morgan("dev"));
 
