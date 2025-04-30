@@ -10,9 +10,13 @@ import * as routes from "./routes";
 // import { setupSession } from "./config/sessions";
 import { sessionMiddleware } from "./middleware/auth";
 
+const cors = require('cors');
 
 dotenv.config();
 const app = express();
+
+app.use(cors());
+
 if(process.env.NODE_ENV !== "production") {
   const reloadServer = livereload.createServer();
 
@@ -48,6 +52,7 @@ app.set("view engine", "ejs");
 app.use("/", routes.root);
 app.use("/test", routes.test);
 app.use("/auth", routes.auth);
+app.use("/game_rooms", routes.game_rooms);
 
 app.use("/lobby", sessionMiddleware, routes.lobby);
 

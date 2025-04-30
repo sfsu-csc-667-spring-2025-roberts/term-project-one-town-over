@@ -6,13 +6,16 @@ import { io, Socket } from "socket.io-client";
 import { useAuth } from "../hooks/useAuth";
 
 interface Game {
-  id: string;
+  room_id: string;
   name: string;
+  code: string;
   host: string;
   players: number;
-  maxPlayers: number;
-  status: "waiting" | "playing" | "ended";
-  createdAt: string;
+  max_players: number;
+  status: "Waiting" | "Playing" | "Ended";
+  created_at: string;
+  small_blind: number;
+  big_blind: number;
 }
 
 interface ChatMessage {
@@ -54,78 +57,48 @@ const Lobby: React.FC = () => {
     };
   }, []);
 
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Fetch game list
+      const gamesResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}:${process.env.REACT_APP_BACKEND_PORT}/game_rooms/getRooms`);
+      setGames(gamesResponse.data || []);
+      
+      // Fetch recent chat messages
+      const chatResponse = await axios.get("/api/chat/lobby");
+      setChatMessages(chatResponse.data.messages || []);
+    } catch (error) {
+      console.error("Error fetching lobby data:", error);
+      toast.error("Failed to load game listings");
+      
+      setChatMessages([
+        {
+          id: "1",
+          user: "jackrichards",
+          message: "Anyone want to join my game?",
+          timestamp: "2025-04-13T20:31:00Z",
+        },
+        {
+          id: "2",
+          user: "hebertrujillo",
+          message: "My game is almost full, one spot left!",
+          timestamp: "2025-04-13T20:32:00Z",
+        },
+        {
+          id: "3",
+          user: "nathandonat",
+          message: "Just created a new table, come join!",
+          timestamp: "2025-04-13T20:33:00Z",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   // Fetch initial data
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        // Fetch game list
-        const gamesResponse = await axios.get("/api/games");
-        setGames(gamesResponse.data.games || []);
-
-        // Fetch recent chat messages
-        const chatResponse = await axios.get("/api/chat/lobby");
-        setChatMessages(chatResponse.data.messages || []);
-      } catch (error) {
-        console.error("Error fetching lobby data:", error);
-        toast.error("Failed to load game listings");
-
-        // Mock data for testing
-        setGames([
-          {
-            id: "1",
-            name: "Jack's Game",
-            host: "jackrichards",
-            players: 2,
-            maxPlayers: 6,
-            status: "waiting",
-            createdAt: "2025-04-13T20:30:00Z",
-          },
-          {
-            id: "2",
-            name: "Heber's Table",
-            host: "hebertrujillo",
-            players: 5,
-            maxPlayers: 6,
-            status: "playing",
-            createdAt: "2025-04-13T19:45:00Z",
-          },
-          {
-            id: "3",
-            name: "Nathan's Casino",
-            host: "nathandonat",
-            players: 3,
-            maxPlayers: 8,
-            status: "waiting",
-            createdAt: "2025-04-13T20:15:00Z",
-          },
-        ]);
-
-        setChatMessages([
-          {
-            id: "1",
-            user: "jackrichards",
-            message: "Anyone want to join my game?",
-            timestamp: "2025-04-13T20:31:00Z",
-          },
-          {
-            id: "2",
-            user: "hebertrujillo",
-            message: "My game is almost full, one spot left!",
-            timestamp: "2025-04-13T20:32:00Z",
-          },
-          {
-            id: "3",
-            user: "nathandonat",
-            message: "Just created a new table, come join!",
-            timestamp: "2025-04-13T20:33:00Z",
-          },
-        ]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
 
@@ -165,22 +138,11 @@ const Lobby: React.FC = () => {
     }
 
     try {
-      // This would be an actual API call in a real app
-      // const response = await axios.post('/api/games', { name: newGameName });
-      // const newGame = response.data.game;
+      await axios.post(`${process.env.REACT_APP_BACKEND_URL}:${process.env.REACT_APP_BACKEND_PORT}/game_rooms/createRoom`, {
+          name: newGameName
+      })
 
-      // Mock creating a game
-      const newGame: Game = {
-        id: Date.now().toString(),
-        name: newGameName,
-        host: user?.username || "Anonymous",
-        players: 1,
-        maxPlayers: 6,
-        status: "waiting",
-        createdAt: new Date().toISOString(),
-      };
-
-      setGames((prev) => [newGame, ...prev]);
+      fetchData();
       setShowCreateGameModal(false);
       setNewGameName("");
       toast.success("Game created successfully");
@@ -228,7 +190,7 @@ const Lobby: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {games.map((game) => (
-                <div key={game.id} className="card">
+                <div key={game.room_id} className="card">
                   <div className="flex flex-col md:flex-row md:items-center justify-between">
                     <div>
                       <h2 className="text-xl font-bold mb-2">{game.name}</h2>
@@ -236,15 +198,15 @@ const Lobby: React.FC = () => {
                         Hosted by: {game.host}
                       </p>
                       <p className="text-gray-600 mb-2">
-                        Players: {game.players}/{game.maxPlayers}
+                        Players: {game.players}/{game.max_players}
                       </p>
                       <p className="text-gray-600 mb-2">
                         Status:
                         <span
                           className={`ml-2 font-medium ${
-                            game.status === "waiting"
+                            game.status === "Waiting"
                               ? "text-yellow-600"
-                              : game.status === "playing"
+                              : game.status === "Playing"
                               ? "text-green-600"
                               : "text-red-600"
                           }`}
@@ -255,17 +217,17 @@ const Lobby: React.FC = () => {
                       </p>
                     </div>
                     <div className="mt-4 md:mt-0">
-                      {game.status !== "waiting" ||
-                      game.players >= game.maxPlayers ? (
+                      {game.status !== "Waiting" ||
+                      game.players >= game.max_players ? (
                         <button
                           className="btn btn-secondary opacity-75"
                           disabled
                         >
-                          {game.status === "playing" ? "Spectate" : "Game Full"}
+                          {game.status === "Playing" ? "Spectate" : "Game Full"}
                         </button>
                       ) : (
                         <Link
-                          to={`/game/${game.id}`}
+                          to={`/game/${game.room_id}`}
                           className="btn btn-primary"
                         >
                           Join Game
