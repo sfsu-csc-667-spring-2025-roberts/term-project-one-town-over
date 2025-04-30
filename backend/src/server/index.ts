@@ -7,7 +7,7 @@ import cookieParser from "cookie-parser";
 import livereload from "livereload";
 import connectLivereload from "connect-livereload";
 import * as routes from "./routes";
-import { setupSession } from "./config/sessions";
+// import { setupSession } from "./config/sessions";
 import { sessionMiddleware } from "./middleware/auth";
 
 
@@ -27,7 +27,7 @@ if(process.env.NODE_ENV !== "production") {
   app.use(connectLivereload());
 }
 
-setupSession(app);
+// setupSession(app); TODO: Un-comment that
 
 const PORT = process.env.Port || 3000;
 
