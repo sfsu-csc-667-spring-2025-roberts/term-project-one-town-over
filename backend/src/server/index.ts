@@ -7,13 +7,20 @@ import cookieParser from "cookie-parser";
 import livereload from "livereload";
 import connectLivereload from "connect-livereload";
 import * as routes from "./routes";
-import { setupSession } from "./config/sessions";
+import setupSession from "./config/sessions";
 import { sessionMiddleware } from "./middleware/auth";
-
+import configureSockets from "./config/sockets";
+import * as http from "http";
+import { Server } from "socket.io";
 
 
 dotenv.config();
+
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+const PORT = process.env.Port || 3000;
+
 if(process.env.NODE_ENV !== "production") {
   const reloadServer = livereload.createServer();
 
@@ -29,8 +36,8 @@ if(process.env.NODE_ENV !== "production") {
 }
 
 setupSession(app);
+configureSockets(io, app);
 
-const PORT = process.env.Port || 3000;
 
 app.use(morgan("dev"));
 
@@ -51,6 +58,7 @@ app.use("/test", routes.test);
 app.use("/auth", routes.auth);
 
 app.use("/lobby", sessionMiddleware, routes.lobby);
+app.use("/chat", sessionMiddleware, routes.chat);
 
 
 
@@ -58,6 +66,6 @@ app.use((_request, response, next) => {
   next(httpErrors(404));
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

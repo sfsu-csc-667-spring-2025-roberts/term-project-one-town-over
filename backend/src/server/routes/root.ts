@@ -5,7 +5,7 @@ const router = express.Router();
 router.get("/", (request, response) => {
 
   //@ts-ignore
-  if (request.session.userId) {
+  if (request.session.user) {
     return response.redirect("/lobby"); // Redirect logged-in users to the lobby
   }
   

@@ -160,7 +160,7 @@
       });
     }
   }
-})({"kQu7H":[function(require,module,exports,__globalThis) {
+})({"9qwek":[function(require,module,exports,__globalThis) {
 var global = arguments[3];
 var HMR_HOST = null;
 var HMR_PORT = 1234;
@@ -168,7 +168,7 @@ var HMR_SERVER_PORT = 1234;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "d6ea1d42532a7575";
 var HMR_USE_SSE = false;
-module.bundle.HMR_BUNDLE_ID = "4619cfb1e77d6cb7";
+module.bundle.HMR_BUNDLE_ID = "e9f76f35210f895d";
 "use strict";
 /* global HMR_HOST, HMR_PORT, HMR_SERVER_PORT, HMR_ENV_HASH, HMR_SECURE, HMR_USE_SSE, chrome, browser, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */ /*::
 import type {
@@ -666,44 +666,7 @@ function hmrAccept(bundle /*: ParcelRequire */ , id /*: string */ ) {
     }
 }
 
-},{}],"9YDZd":[function(require,module,exports,__globalThis) {
-var _socket = require("../socket");
-const parent = document.querySelector("section#chat div");
-const messageInput = document.querySelector("section#chat form input[name=message]");
-document.querySelector("section#chat form.chat-form")?.addEventListener("submit", (event)=>{
-    event.preventDefault();
-    const message = messageInput?.value;
-    messageInput.value = "";
-    console.log("Sending message", message);
-    fetch("/chat/0", {
-        method: "post",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            message
-        })
-    });
-});
-(0, _socket.socket).on("chat-message:0", ({ message, sender, timestamp })=>{
-    const container = document.createElement("div");
-    container.className = "chat-message";
-    const displayTime = document.createElement("span");
-    displayTime.className = "chat-timestamp";
-    displayTime.innerText = new Date(timestamp).toLocaleTimeString();
-    const messageText = document.createElement("span");
-    messageText.innerText = message;
-    container.appendChild(displayTime);
-    container.appendChild(messageText);
-    parent?.appendChild(container);
-    parent?.scrollTo({
-        top: parent.scrollHeight,
-        behavior: "smooth"
-    });
-});
-
-},{"../socket":"kvDhO"}],"kvDhO":[function(require,module,exports,__globalThis) {
+},{}],"kvDhO":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "socket", ()=>socket) // Export the socket instance for use in other modules
@@ -4348,6 +4311,6 @@ function Backoff(opts) {
     this.jitter = jitter;
 };
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["kQu7H","9YDZd"], "9YDZd", "parcelRequireb88d", {})
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["9qwek","kvDhO"], "kvDhO", "parcelRequireb88d", {})
 
 //# sourceMappingURL=index.js.map

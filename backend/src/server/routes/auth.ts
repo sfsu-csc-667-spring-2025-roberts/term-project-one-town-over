@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.get("/register", async (request: Request, response: Response) => {
     //@ts-ignore
-    if (request.session.userId) {
+    if (request.session.user) {
         return response.redirect("/lobby"); // Redirect logged-in users to the lobby
     }
 
@@ -16,17 +16,13 @@ router.get("/register", async (request: Request, response: Response) => {
 });
 
 router.post("/register", async (request: Request, response: Response) => {
-    const {email, password:password} = request.body;
+    const {email, password} = request.body;
 
     try{
-        const userId = await User.register(email, password);
+        const user = await User.register(email, password);
         
-
         // @ts-ignore
-        request.session.userId = userId;
-        // @ts-ignore
-        request.session.userEmail = email;
-
+        request.session.user = user;
 
         response.redirect("/lobby")
     }catch(error){
@@ -38,7 +34,7 @@ router.post("/register", async (request: Request, response: Response) => {
 router.get("/login", async (request: Request, response: Response) => {
 
     //@ts-ignore
-    if (request.session.userId) {
+    if (request.session.user) {
         return response.redirect("/lobby"); // Redirect logged-in users to the lobby
     }
 
@@ -50,13 +46,12 @@ router.post("/login", async (request: Request, response: Response) => {
     const {email, password} = request.body;
 
     try{
-        const userId = await User.login(email, password);
-        // @ts-ignore
-        request.session.userId = userId;
-        // @ts-ignore
-        request.session.userEmail = email;
+        const user = await User.login(email, password);
 
-        console.log("Stored userEmail in session:", email); 
+        // @ts-ignore
+        request.session.user = user;
+
+        console.log("Stored userEmail in session:", user.email); 
 
         response.redirect("/lobby")
     }
@@ -68,9 +63,7 @@ router.post("/login", async (request: Request, response: Response) => {
 
 router.get("/logout", async (request: Request, response: Response) => {
     // @ts-ignore
-    request.session.userId = null;
-    // @ts-ignore
-    request.session.userEmail = null;
+    request.session.user = null;
     request.session.destroy((err)=> {
         if (err) {
             console.error("Session destruction error:", err);
