@@ -6,7 +6,12 @@ import  User from "../db/users"
 
 const router = express.Router();
 
-router.get("/register", async (_request: Request, response: Response) => {
+router.get("/register", async (request: Request, response: Response) => {
+    //@ts-ignore
+    if (request.session.userId) {
+        return response.redirect("/lobby"); // Redirect logged-in users to the lobby
+    }
+
     response.render("auth/register");
 });
 
@@ -19,16 +24,24 @@ router.post("/register", async (request: Request, response: Response) => {
 
         // @ts-ignore
         request.session.userId = userId;
+        // @ts-ignore
+        request.session.userEmail = email;
 
 
         response.redirect("/lobby")
     }catch(error){
         response.render("auth/register", {error: "Registration failed"});
     }    
-    response.json({email, password});   
+    
 });
 
-router.get("/login", async (_request: Request, response: Response) => {
+router.get("/login", async (request: Request, response: Response) => {
+
+    //@ts-ignore
+    if (request.session.userId) {
+        return response.redirect("/lobby"); // Redirect logged-in users to the lobby
+    }
+
     response.render("auth/login");
 
 });
@@ -40,7 +53,10 @@ router.post("/login", async (request: Request, response: Response) => {
         const userId = await User.login(email, password);
         // @ts-ignore
         request.session.userId = userId;
+        // @ts-ignore
+        request.session.userEmail = email;
 
+        console.log("Stored userEmail in session:", email); 
 
         response.redirect("/lobby")
     }
@@ -53,11 +69,18 @@ router.post("/login", async (request: Request, response: Response) => {
 router.get("/logout", async (request: Request, response: Response) => {
     // @ts-ignore
     request.session.userId = null;
-    request.session.destroy(()=> {
+    // @ts-ignore
+    request.session.userEmail = null;
+    request.session.destroy((err)=> {
+        if (err) {
+            console.error("Session destruction error:", err);
+            return response.status(500).send("Failed to destroy session");
+        }
+
+        // Only redirect after session is successfully destroyed
         response.redirect("/");
     });
 
-    response.redirect("/");
 });
 
 export default router;

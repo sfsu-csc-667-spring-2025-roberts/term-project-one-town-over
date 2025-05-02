@@ -11,6 +11,7 @@ import { setupSession } from "./config/sessions";
 import { sessionMiddleware } from "./middleware/auth";
 
 
+
 dotenv.config();
 const app = express();
 if(process.env.NODE_ENV !== "production") {
@@ -50,6 +51,7 @@ app.use("/test", routes.test);
 app.use("/auth", routes.auth);
 
 app.use("/lobby", sessionMiddleware, routes.lobby);
+
 
 
 app.use((_request, response, next) => {

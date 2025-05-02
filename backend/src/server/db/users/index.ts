@@ -11,7 +11,7 @@ const register = async (email: string, password:string) => {
     
     const encryptedPassword = await bcrypt.hash(password, 10);
 
-    const {id} = await db.one("INSERT INTO users (email, password) VALUES ($1, $2)", [email, encryptedPassword]);
+    const {id} = await db.one("INSERT INTO usertest (email, password) VALUES ($1, $2) RETURNING id", [email, encryptedPassword]);
 
     return id;
 };
@@ -20,9 +20,15 @@ const register = async (email: string, password:string) => {
 
 const login = async (email: string, password:string ) => {
 
-    const user = await db.one<User>("SELECT * FROM users WHERE email = $1", [email]);
+    const user = await db.one<User>("SELECT * FROM usertest WHERE email = $1", [email]);
+
+    console.log("User from DB:", user);
+    console.log("Input password:", password);
+    console.log("Stored password:", user.password);
 
     const passwordMatch = await bcrypt.compare(password, user.password);
+
+    console.log("Password match:", passwordMatch);
 
     if(passwordMatch){
         return user.id;

@@ -5,6 +5,11 @@ const sessionMiddleware = (request: Request, response: Response, next: NextFunct
     if(request.session.userId !== undefined){
         //@ts-ignore
         response.locals.userId = request.session.userId;
+    //@ts-ignore
+        response.locals.userEmail = request.session.userEmail;
+// @ts-ignore
+        console.log("Session userEmail in middleware:", request.session.userEmail);
+
         next();
     } else {
         response.redirect("/auth/login");
