@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 
-const sessionMiddleware = (request: Request, response: Response, next: NextFunction) => { 
+const authMiddleware = (request: Request, response: Response, next: NextFunction) => { 
     //@ts-ignore
     if(request.session.user) { // Check if the user is logged in
         //@ts-ignore
@@ -10,8 +10,8 @@ const sessionMiddleware = (request: Request, response: Response, next: NextFunct
 
         next();
     } else {
-        response.redirect("/auth/login");
+        response.redirect("/");
     }
 };
 
-export {sessionMiddleware};
+export {authMiddleware};

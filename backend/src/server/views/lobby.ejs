@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lobby</title>
+    <title>Lobby: <%= roomId %> </title>
     <script src = "/public/js/main.js" defer></script>
+    <script src="/public/js/chat/index.js" defer></script>
+    <script src="/public/js/games/index.js" defer></script>
     <%- include('shared/head') %>
 </head>
 <body>
@@ -16,9 +18,10 @@
     <form action="/auth/logout" method="get">
         <button type="submit">Log Out</button>
     </form>
-
+    <input type="hidden" id="userId" value="<%= roomId %>">
     <div id="lobby-container">
         <section>Games go here</section>
+        <div>------------------------------</div>
         <section id = "chat">Chat goes here
             <div></div>
             <div>
@@ -31,6 +34,44 @@
                 </form>
             </div>
         </section>
+        <div>------------------------------</div>
+        <form id = "create-game" action="/games/create" method="post">
+            name
+            min/max players
+            password
+            <div>
+                <label for="game-name">Game Name</label>
+                <input type="text" id="gameame" name="gameName" >
+            </div>
+
+            <div>
+                <label for="game-min-players">Min Players</label>
+                <input type="number" id="game-min-players" name="gameMinPlayers" min = "2" max = "6" value="2" >
+            </div>
+
+            <div>
+                <label for="game-max-players">Max Players</label>
+                <input type="number" id="game-max-players" name="gameMaxPlayers" min = "2" max = "4" value="4" >
+            </div>
+
+            <div>
+                <label for="game-password">Password</label>
+                <input type="text" id="game-password" name="gamePassword" >
+            </div>
+            <input type="submit" value="Create Game">
+        </form>
+        <div>------------------------------</div>
+        <form id = "join-game" action="/games/join" method="post">
+            <div>
+                <label for="game-id">Game ID</label>
+                <input type="text" id="game-id" name="gameId" >
+            </div>
+
+            <div>
+                <label for="game-password">Password</label>
+                <input type="text" id="game-password-join" name="gamePassword" >
+            </div>
+            <input type="submit" value="Join Game">
     </div>
 </body>
 </html>  
