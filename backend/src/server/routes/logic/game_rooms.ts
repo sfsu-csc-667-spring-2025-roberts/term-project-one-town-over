@@ -38,4 +38,17 @@ router.get("/getRooms", async (request: Request, response: Response) => {
   }
 });
 
+router.get("/getSpecificRoom", async (request: Request, response: Response) => {
+  const { room_id } = request.body;
+
+  try {
+    const value = await db.one(`SELECT * FROM game_rooms WHERE room_id = $1`, [room_id]);
+
+    response.json(value);
+  } catch (error) {
+    console.error(error);
+    response.json("Failed to get specific room");
+  }
+});
+
 export default router;

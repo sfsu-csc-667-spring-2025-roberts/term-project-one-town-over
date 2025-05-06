@@ -53,6 +53,8 @@ app.use("/", routes.root);
 app.use("/test", routes.test);
 app.use("/auth", routes.auth);
 app.use("/game_rooms", routes.game_rooms);
+app.use("/players", routes.players);
+app.use("/game_rounds", routes.game_rounds);
 
 app.use("/lobby", sessionMiddleware, routes.lobby);
 
