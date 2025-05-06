@@ -56,6 +56,8 @@ app.use("/game_rooms", routes.game_rooms);
 app.use("/players", routes.players);
 app.use("/game_rounds", routes.game_rounds);
 app.use("/cards", routes.cards);
+app.use("/community_cards", routes.community_cards);
+app.use("/player_hands", routes.player_hands);
 
 app.use("/lobby", sessionMiddleware, routes.lobby);
 

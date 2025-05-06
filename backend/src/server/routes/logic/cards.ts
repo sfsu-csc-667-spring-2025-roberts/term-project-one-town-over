@@ -40,26 +40,48 @@ router.post("/createAllCards", async (request: Request, response: Response) => {
 });
 
 router.put("/showCard", async (request: Request, response: Response) => {
-    const { card_id, is_hide } = request.body;
-  
-    try {
-      const card = await db.one(
-        `UPDATE cards SET is_hide = $1 WHERE card_id = $2 RETURNING *`,
-        [is_hide, card_id]
-      );
-  
-      response.status(201).json({
-        success: true,
-        message: "Card edited successfully",
-        card: card,
-      });
-    } catch (error) {
-      console.error(error);
-      response.status(500).json({
-        success: false,
-        message: "Failed to edit card",
-      });
-    }
-  });
+  const { card_id, is_hide } = request.body;
+
+  try {
+    const card = await db.one(
+      `UPDATE cards SET is_hide = $1 WHERE card_id = $2 RETURNING *`,
+      [is_hide, card_id]
+    );
+
+    response.status(201).json({
+      success: true,
+      message: "Card edited successfully",
+      card: card,
+    });
+  } catch (error) {
+    console.error(error);
+    response.status(500).json({
+      success: false,
+      message: "Failed to edit card",
+    });
+  }
+});
+
+router.delete("/deleteAllCards", async (request: Request, response: Response) => {
+  const { round_id } = request.body;
+
+  try {
+    await db.none(
+      `DELETE FROM cards WHERE round_id = $1`,
+      [round_id]
+    );
+
+    response.status(201).json({
+      success: true,
+      message: "Cards deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    response.status(500).json({
+      success: false,
+      message: "Failed to delete card",
+    });
+  }
+});
 
 export default router;

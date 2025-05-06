@@ -6,3 +6,5 @@ export {default as game_rooms} from "./logic/game_rooms";
 export {default as players} from "./logic/players";
 export {default as game_rounds} from "./logic/game_rounds";
 export {default as cards} from "./logic/cards";
+export {default as community_cards} from "./logic/community_cards";
+export {default as player_hands} from "./logic/player_hands";
