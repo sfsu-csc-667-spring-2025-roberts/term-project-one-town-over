@@ -1,0 +1,64 @@
+<html lang = "en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Game Room: <%= roomId %></title>
+        <script src = "/public/js/main.js" defer></script>
+        <script src="/public/js/chat/index.js" defer></script>
+        <script src="/public/js/games/index.js" defer></script>
+        <%- include('shared/head') %>
+    </head>
+    <body>
+        <h1>Hello, <%= user.email %> (<%= user.id%>)</h1>
+        
+        <form action="/auth/logout" method="get">
+            <button type="submit">Log Out</button>
+        </form>
+        <form action="/games/leave" method="post">
+            <input type="hidden" name="gameId" value="<%= gameId %>">
+            <button type="submit">Leave Room</button>
+        </form>
+        <input type="hidden" id="userId" value="<%= roomId %>">
+        <div id="lobby-container">
+                <div></div>
+                <div>------------------------------</div>
+                <div>
+                    <section id = "chat">Chat goes here
+                        <div></div>
+                        <div>
+                            <form class = " chat-form">
+                                <input type="text"
+                                id = "message"
+                                name="message"
+                                placeholder="Type your message here">
+                                <button type="submit">Send</button>
+                            </form>
+                        </div>
+                    </section>
+                </div>
+            </section>
+            <div>------------------------------</div>
+            
+            <div></div>
+            <h2>Room Name: <%= name ? name: "None"%></h2>
+            <div></div>
+            Game ID: <%=gameId%> 
+            <div></div>
+            Game password: <%= password ? password : "None" %>
+            <div></div>
+            
+            <div>------------------------------</div>
+            <div>
+                <h2>Total player in the lobby: <%=player_count%></h2>
+                <ul id="player-list">
+  <% players.forEach(player => { %>
+    <li><%= player.email %> (ID: <%= player.player_id %>)</li>
+  <% }) %>
+</ul>
+            </div>
+        
+        </div>
+
+
+    </body>
+</html>

@@ -10,11 +10,6 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set in environment variables");
 }
 
-const db = pgp({
-  host: process.env.PGHOST,
-  database: process.env.PGDATABASE,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-});
+const connection = pgp(process.env.DATABASE_URL);
 
-export default db;
+export default connection;

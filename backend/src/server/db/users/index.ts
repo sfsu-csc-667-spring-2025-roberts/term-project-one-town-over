@@ -1,33 +1,29 @@
 import db from "../connection"
 import bcrypt from "bcrypt";
 
-export type User = {
-    id:number;
-    email: string;
-    password: string;
-};
-
-const register = async (email: string, password:string, username:string) => {    
+const register = async (email: string, password:string) => {
+    
     const encryptedPassword = await bcrypt.hash(password, 10);
 
-    // const {id} = await db.one("INSERT INTO users (email, password) VALUES ($1, $2)", [email, encryptedPassword]);
-    await db.none("INSERT INTO users (email, password, username, avatar) VALUES ($1, $2, $3, 'avatar.png')", [email, encryptedPassword, username]);
+    const {id} = await db.one("INSERT INTO usertest (email, password) VALUES ($1, $2) RETURNING id", [email, encryptedPassword]);
 
-    const user = await db.one<User>("SELECT * FROM users WHERE email = $1", [email]);
-
-    // return id;
-    return user;
+    return {id, email};
 };
 
 const login = async (email: string, password:string ) => {
 
-    const user = await db.one<User>("SELECT * FROM users WHERE email = $1", [email]);
+    const {id, password: encryptedPassword} = await db.one("SELECT id, email, password FROM usertest WHERE email = $1", [email]);
 
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    console.log("User from DB:", id);
+    console.log("Input password:", password);
+    console.log("Stored password:",     encryptedPassword);
+
+    const passwordMatch = await bcrypt.compare(password, encryptedPassword);
+
+    console.log("Password match:", passwordMatch);
 
     if(passwordMatch){
-        // return user.id;
-        return user;
+        return {id, email};
     } else {
         throw new Error("Failed to log in  ");
     }

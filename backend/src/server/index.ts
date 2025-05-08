@@ -1,4 +1,4 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import dotenv from "dotenv";
 import httpErrors from "http-errors";
 import * as path from "path";
@@ -7,15 +7,21 @@ import cookieParser from "cookie-parser";
 import livereload from "livereload";
 import connectLivereload from "connect-livereload";
 import * as routes from "./routes";
-// import { setupSession } from "./config/sessions";
-import { sessionMiddleware } from "./middleware/auth";
-
-const cors = require('cors');
+import setupSession from "./config/sessions";
+import { authMiddleware } from "./middleware/auth";
+import { roomMiddleware } from "./middleware/room"; 
+import configureSockets from "./config/sockets";
+import * as http from "http";
+import { Server } from "socket.io";
 
 dotenv.config();
-const app = express();
 
-app.use(cors());
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+const PORT = process.env.Port || 3000;
+
+app.use(roomMiddleware);
 
 if(process.env.NODE_ENV !== "production") {
   const reloadServer = livereload.createServer();
@@ -31,17 +37,15 @@ if(process.env.NODE_ENV !== "production") {
   app.use(connectLivereload());
 }
 
-// setupSession(app); TODO: Un-comment that
+setupSession(app);
+configureSockets(io, app);
 
-const PORT = process.env.Port || 3000;
 
 app.use(morgan("dev"));
 
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: false }));
-
-
 app.use(cookieParser());
 
 app.use("/public", express.static(path.join(process.cwd(), "public")));
@@ -59,13 +63,14 @@ app.use("/cards", routes.cards);
 app.use("/community_cards", routes.community_cards);
 app.use("/player_hands", routes.player_hands);
 
-app.use("/lobby", sessionMiddleware, routes.lobby);
-
+app.use("/lobby", authMiddleware, routes.lobby);
+app.use("/chat", authMiddleware, routes.chat);
+app.use("/games", authMiddleware, routes.games);
 
 app.use((_request, response, next) => {
   next(httpErrors(404));
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

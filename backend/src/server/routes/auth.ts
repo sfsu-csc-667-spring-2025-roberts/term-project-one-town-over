@@ -5,32 +5,51 @@ import  User from "../db/users"
 
 const router = express.Router();
 
-router.get("/register", async (_request: Request, response: Response) => {
+router.get("/register", async (request: Request, response: Response) => {
+    //@ts-ignore
+    if (request.session.user) {
+        return response.redirect("/lobby"); // Redirect logged-in users to the lobby
+    }
+
     response.render("auth/register");
 });
 
 router.post("/register", async (request: Request, response: Response) => {
-    const {email, password, username} = request.body;
+    // const {email, password, username} = request.body;
 
-    try {
-        // const userId = await User.register(email, password, username);
-        const user = await User.register(email, password, username);
+    // try {
+    //     const user = await User.register(email, password, username);
+
+    //     response.json(user);
+    // } catch(error) {
+    //     console.error(error);
+    //     response.status(401).json({
+    //         success: false,
+    //         message: "Failed to register",
+    //     });
+    // }
+    const {email, password} = request.body;
+
+    try{
+        const user = await User.register(email, password);
         
-        // request.session.userId = userId;
+        // @ts-ignore
+        request.session.user = user;
 
-        // response.redirect("/lobby")
-        response.json(user);
-    } catch(error) {
-        // response.render("auth/register", {error: "Registration failed"});
-        console.error(error);
-        response.status(401).json({
-            success: false,
-            message: "Failed to register",
-        });
-    }
+        response.redirect("/lobby")
+    }catch(error){
+        response.render("auth/register", {error: "Registration failed"});
+    }    
+    
 });
 
-router.get("/login", async (_request: Request, response: Response) => {
+router.get("/login", async (request: Request, response: Response) => {
+
+    //@ts-ignore
+    if (request.session.user) {
+        return response.redirect("/lobby"); // Redirect logged-in users to the lobby
+    }
+
     response.render("auth/login");
 });
 
@@ -38,32 +57,39 @@ router.post("/login", async (request: Request, response: Response) => {
     const {email, password} = request.body;
 
     try{
-        // const userId = await User.login(email, password);
         const user = await User.login(email, password);
 
-        // request.session.userId = userId;
+        // @ts-ignore
+        request.session.user = user;
 
-        // response.redirect("/lobby")
-        response.json(user);
+        console.log("Stored userEmail in session:", user.email); 
+
+        response.redirect("/lobby")
+        // response.json(user);
     }
     catch(error){
-        // response.render("auth/login",{error: "Invalid email or password"});
-        response.status(401).json({
-            success: false,
-            message: "Failed to login",
-        });
+        response.render("auth/login",{error: "Invalid email or password"});
+        // response.status(401).json({
+        //     success: false,
+        //     message: "Failed to login",
+        // });
     }
     
 });
 
-router.post("/logout", async (request: Request, response: Response) => {
-    // request.session.userId = null;
-    // request.session.destroy(()=> {
-    //     response.redirect("/");
-    // });
+router.get("/logout", async (request: Request, response: Response) => {
+    // @ts-ignore
+    request.session.user = null;
+    request.session.destroy((err)=> {
+        if (err) {
+            console.error("Session destruction error:", err);
+            return response.status(500).send("Failed to destroy session");
+        }
 
-    // response.redirect("/");
-    response.json("Logout successfull");
+        // Only redirect after session is successfully destroyed
+        response.redirect("/");
+    });
+
 });
 
 export default router;
