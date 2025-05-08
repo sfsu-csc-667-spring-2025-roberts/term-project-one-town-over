@@ -13,6 +13,7 @@ import { roomMiddleware } from "./middleware/room";
 import configureSockets from "./config/sockets";
 import * as http from "http";
 import { Server } from "socket.io";
+const cors = require('cors');
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.Port || 3000;
 
+app.use(cors());
 app.use(roomMiddleware);
 
 if(process.env.NODE_ENV !== "production") {

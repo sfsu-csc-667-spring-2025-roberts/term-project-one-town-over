@@ -48,7 +48,7 @@ router.put("/showCard", async (request: Request, response: Response) => {
       [is_hide, card_id]
     );
 
-    response.status(201).json({
+    response.status(200).json({
       success: true,
       message: "Card edited successfully",
       card: card,
@@ -71,7 +71,7 @@ router.delete("/deleteAllCards", async (request: Request, response: Response) =>
       [round_id]
     );
 
-    response.status(201).json({
+    response.status(200).json({
       success: true,
       message: "Cards deleted successfully",
     });

@@ -36,7 +36,7 @@ router.put("/editRoundStage", async (request: Request, response: Response) => {
       [new_stage, round_id]
     );
 
-    response.status(201).json({
+    response.status(200).json({
       success: true,
       message: "Round's stage edited successfully",
       round: round,
@@ -59,7 +59,7 @@ router.put("/editRoundMoney", async (request: Request, response: Response) => {
       [new_money, round_id]
     );
 
-    response.status(201).json({
+    response.status(200).json({
       success: true,
       message: "Round's money edited successfully",
       round: round,

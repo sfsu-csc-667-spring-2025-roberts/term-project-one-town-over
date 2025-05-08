@@ -36,7 +36,7 @@ router.put("/playerLoose", async (request: Request, response: Response) => {
             [hand_id]
         );
 
-        response.status(201).json({
+        response.status(200).json({
         success: true,
         message: "Player hand edited successfully",
         player_hand: player_hand,

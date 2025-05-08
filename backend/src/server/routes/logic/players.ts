@@ -36,7 +36,7 @@ router.put("/editPlayerMoney", async (request: Request, response: Response) => {
       [newMoney, player_id]
     );
 
-    response.status(201).json({
+    response.status(200).json({
       success: true,
       message: "Player's money edited successfully",
       player: player,
@@ -59,7 +59,7 @@ router.put("/editPlayerStatus", async (request: Request, response: Response) => 
       [is_ready, player_id]
     );
 
-    response.status(201).json({
+    response.status(200).json({
       success: true,
       message: "Player's status edited successfully",
       player: player,
