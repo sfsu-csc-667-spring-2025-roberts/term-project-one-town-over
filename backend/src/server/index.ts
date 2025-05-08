@@ -18,6 +18,8 @@ import { Server } from "socket.io";
 import { timeMiddleware } from "./middleware/time";
 import rootRoutes from "./routes/root";
 
+const pool = require("./db");
+
 dotenv.config();
 
 const app = express();
@@ -25,7 +27,16 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.Port || 3000;
 
-app.use(roomMiddleware);
+
+const myfunc = async () => {
+  const result = await pool.query('SELECT * FROM users;');
+  console.log("Result: ", result);
+};
+
+myfunc();
+
+app.use(morgan("dev"));
+
 
 if(process.env.NODE_ENV !== "production") {
   const reloadServer = livereload.createServer();
