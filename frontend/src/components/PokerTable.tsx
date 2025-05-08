@@ -29,8 +29,8 @@ interface PokerTableProps {
 const PokerTable: React.FC<PokerTableProps> = ({
   players,
   communityCards,
-  dealerPosition,
-  currentTurn,
+  // dealerPosition,
+  // currentTurn,
   currentUserId,
 }) => {
   // Calculate positions for players around the table
