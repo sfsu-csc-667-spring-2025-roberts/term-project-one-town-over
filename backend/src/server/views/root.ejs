@@ -1,8 +1,22 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
     <head>
-        <title>Hello</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <!-- <script src="/public/js/main.js" defer></script> -->
+        <script src="/public/js/chat/index.js" defer></script>
+        <script src="/public/js/games/index.js" defer></script>
     </head>
     <body>
-    <p>Hello <%= name %></p>
+        <main>
+            <p>Hello <%= name %></p>
+            
+            <!-- Log In and Register buttons -->
+            <div>
+                <button onclick="window.location.href='/auth/login'">Log In</button>
+                <button onclick="window.location.href='/auth/register'">Register</button>
+            </div>
+        </main>
     </body>
 </html>
