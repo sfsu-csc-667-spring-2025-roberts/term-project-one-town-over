@@ -39,7 +39,9 @@
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.13.14",
     "@types/socket.io": "^3.0.1",
+    "@types/jsonwebtoken": "^9.0.5",
     "@types/webpack": "^5.28.5",
+    "@types/pg": "^8.10.9",
     "concurrently": "^9.1.2",
     "connect": "^3.7.0",
     "connect-livereload": "^0.6.1",
@@ -51,7 +53,7 @@
     "prettier": "^3.5.3",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.2",
+    "typescript": "^5.8.3",
     "webpack": "^5.99.6",
     "webpack-cli": "^6.0.1"
   },
@@ -66,10 +68,19 @@
     "http-errors": "^2.0.0",
     "morgan": "^1.10.0",
     "node-pg-migrate": "^7.9.1",
-    "pg": "^8.14.1",
     "pg-promise": "^11.13.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "pg": "^8.11.3",
+    "socket.io": "^4.7.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.0",
+    "nodemon": "^3.1.9",
+    "prettier": "^3.5.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   },
   "lint-staged": {
     "**/*": "prettier --write --ignore-unknown"
