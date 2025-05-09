@@ -53,7 +53,7 @@ const Lobby: React.FC = () => {
       socketRef.current?.disconnect();
     };
   }, []);
-  
+
   // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
@@ -125,7 +125,7 @@ const Lobby: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
 
@@ -179,9 +179,6 @@ const Lobby: React.FC = () => {
         status: "waiting",
         createdAt: new Date().toISOString(),
       };
-      await axios.post(`${process.env.REACT_APP_BACKEND_URL}:${process.env.REACT_APP_BACKEND_PORT}/game_rooms/createRoom`, {
-          name: newGameName
-      })
 
       setGames((prev) => [newGame, ...prev]);
       setShowCreateGameModal(false);
