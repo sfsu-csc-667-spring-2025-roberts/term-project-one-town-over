@@ -10,8 +10,6 @@ const register = async (email: string, password:string) => {
     return {id, email};
 };
 
-
-
 const login = async (email: string, password:string ) => {
 
     const {id, password: encryptedPassword} = await db.one("SELECT id, email, password FROM usertest WHERE email = $1", [email]);

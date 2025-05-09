@@ -13,6 +13,7 @@ import { roomMiddleware } from "./middleware/room";
 import configureSockets from "./config/sockets";
 import * as http from "http";
 import { Server } from "socket.io";
+const cors = require('cors');
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.Port || 3000;
 
+app.use(cors());
 app.use(roomMiddleware);
 
 if(process.env.NODE_ENV !== "production") {
@@ -56,6 +58,12 @@ app.set("view engine", "ejs");
 app.use("/", routes.root);
 app.use("/test", routes.test);
 app.use("/auth", routes.auth);
+app.use("/game_rooms", routes.game_rooms);
+app.use("/players", routes.players);
+app.use("/game_rounds", routes.game_rounds);
+app.use("/cards", routes.cards);
+app.use("/community_cards", routes.community_cards);
+app.use("/player_hands", routes.player_hands);
 
 app.use("/lobby", authMiddleware, routes.lobby);
 app.use("/chat", authMiddleware, routes.chat);
