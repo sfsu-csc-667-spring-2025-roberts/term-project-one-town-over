@@ -7,7 +7,7 @@ interface Card {
 
 interface Player {
   id: string;
-  username: string;
+  email: string;
   chips: number;
   hand?: Card[];
   isActive: boolean;
@@ -146,7 +146,7 @@ const PokerTable: React.FC<PokerTableProps> = ({
             } ${player.hasFolded ? "opacity-50" : ""}`}
           >
             <div className="font-bold text-sm truncate max-w-[120px]">
-              {player.username}
+              {player.email}
             </div>
             <div className="text-xs">${player.chips}</div>
 

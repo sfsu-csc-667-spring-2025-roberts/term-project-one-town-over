@@ -9,32 +9,32 @@ const Navbar: React.FC = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate("/login");
+    navigate("/auth/login");
   };
 
   return (
-    <nav className="bg-primary text-white shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="text-white shadow-md bg-primary">
+      <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0">
-              <span className="font-display text-xl font-bold">
+              <span className="text-xl font-bold font-display">
                 Texas Hold'em
               </span>
             </Link>
             <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-4">
+              <div className="flex items-baseline ml-10 space-x-4">
                 {isAuthenticated && (
                   <>
                     <Link
                       to="/lobby"
-                      className="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-dark"
+                      className="px-3 py-2 text-sm font-medium rounded-md hover:bg-primary-dark"
                     >
                       Lobby
                     </Link>
                     <Link
                       to="/profile"
-                      className="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-dark"
+                      className="px-3 py-2 text-sm font-medium rounded-md hover:bg-primary-dark"
                     >
                       Profile
                     </Link>
@@ -44,13 +44,13 @@ const Navbar: React.FC = () => {
             </div>
           </div>
           <div className="hidden md:block">
-            <div className="ml-4 flex items-center md:ml-6">
+            <div className="flex items-center ml-4 md:ml-6">
               {isAuthenticated ? (
                 <div className="flex items-center">
-                  <span className="mr-4">{user?.username}</span>
+                  <span className="mr-4">{user?.email}</span>
                   <button
                     onClick={handleLogout}
-                    className="px-3 py-2 rounded-md text-sm font-medium bg-primary-dark hover:bg-primary-light"
+                    className="px-3 py-2 text-sm font-medium rounded-md bg-primary-dark hover:bg-primary-light"
                   >
                     Logout
                   </button>
@@ -58,14 +58,14 @@ const Navbar: React.FC = () => {
               ) : (
                 <div className="flex space-x-4">
                   <Link
-                    to="/login"
-                    className="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-dark"
+                    to="/auth/login"
+                    className="px-3 py-2 text-sm font-medium rounded-md hover:bg-primary-dark"
                   >
                     Login
                   </Link>
                   <Link
-                    to="/register"
-                    className="px-3 py-2 rounded-md text-sm font-medium bg-primary-dark hover:bg-primary-light"
+                    to="/auth/register"
+                    className="px-3 py-2 text-sm font-medium rounded-md bg-primary-dark hover:bg-primary-light"
                   >
                     Register
                   </Link>
@@ -73,18 +73,18 @@ const Navbar: React.FC = () => {
               )}
             </div>
           </div>
-          <div className="-mr-2 flex md:hidden">
+          <div className="flex -mr-2 md:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               type="button"
-              className="inline-flex items-center justify-center p-2 rounded-md text-white hover:bg-primary-dark focus:outline-none"
+              className="inline-flex items-center justify-center p-2 text-white rounded-md hover:bg-primary-dark focus:outline-none"
               aria-controls="mobile-menu"
               aria-expanded="false"
             >
               <span className="sr-only">Open main menu</span>
               {!isMenuOpen ? (
                 <svg
-                  className="block h-6 w-6"
+                  className="block w-6 h-6"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -100,7 +100,7 @@ const Navbar: React.FC = () => {
                 </svg>
               ) : (
                 <svg
-                  className="block h-6 w-6"
+                  className="block w-6 h-6"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -128,14 +128,14 @@ const Navbar: React.FC = () => {
               <>
                 <Link
                   to="/lobby"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-primary-dark"
+                  className="block px-3 py-2 text-base font-medium rounded-md hover:bg-primary-dark"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Lobby
                 </Link>
                 <Link
                   to="/profile"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-primary-dark"
+                  className="block px-3 py-2 text-base font-medium rounded-md hover:bg-primary-dark"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Profile
@@ -146,21 +146,16 @@ const Navbar: React.FC = () => {
               <div className="pt-4 pb-3 border-t border-primary-light">
                 <div className="flex items-center px-5">
                   <div className="ml-3">
-                    <div className="text-base font-medium">
-                      {user?.username}
-                    </div>
-                    <div className="text-sm font-medium text-gray-300">
-                      {user?.email}
-                    </div>
+                    <div className="text-base font-medium">{user?.email}</div>
                   </div>
                 </div>
-                <div className="mt-3 px-2 space-y-1">
+                <div className="px-2 mt-3 space-y-1">
                   <button
                     onClick={() => {
                       handleLogout();
                       setIsMenuOpen(false);
                     }}
-                    className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-primary-dark"
+                    className="block w-full px-3 py-2 text-base font-medium text-left rounded-md hover:bg-primary-dark"
                   >
                     Logout
                   </button>
@@ -169,15 +164,15 @@ const Navbar: React.FC = () => {
             ) : (
               <div className="pt-4 pb-3 border-t border-primary-light">
                 <Link
-                  to="/login"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-primary-dark"
+                  to="/auth/login"
+                  className="block px-3 py-2 text-base font-medium rounded-md hover:bg-primary-dark"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Login
                 </Link>
                 <Link
-                  to="/register"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-primary-dark"
+                  to="/auth/register"
+                  className="block px-3 py-2 text-base font-medium rounded-md hover:bg-primary-dark"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Register

@@ -66,28 +66,28 @@ const Profile: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[80vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="w-12 h-12 border-t-2 border-b-2 rounded-full animate-spin border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
-      <div className="card mb-8">
+    <div className="container max-w-4xl px-4 py-8 mx-auto">
+      <div className="mb-8 card">
         <div className="flex items-center">
-          <div className="h-16 w-16 rounded-full bg-primary flex items-center justify-center text-white text-2xl font-bold">
-            {user?.username.charAt(0).toUpperCase()}
+          <div className="flex items-center justify-center w-16 h-16 text-2xl font-bold text-white rounded-full bg-primary">
+            {user?.email.charAt(0).toUpperCase()}
           </div>
           <div className="ml-4">
-            <h1 className="text-2xl font-bold">{user?.username}</h1>
+            <h1 className="text-2xl font-bold">{user?.email}</h1>
             <p className="text-gray-600">{user?.email}</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="card bg-white">
-          <h2 className="text-xl font-bold mb-4">Statistics</h2>
+      <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2">
+        <div className="bg-white card">
+          <h2 className="mb-4 text-xl font-bold">Statistics</h2>
           <div className="space-y-2">
             <p>
               <span className="font-medium">Games Played:</span>{" "}
@@ -113,12 +113,9 @@ const Profile: React.FC = () => {
           </div>
         </div>
 
-        <div className="card bg-white">
-          <h2 className="text-xl font-bold mb-4">Account Info</h2>
+        <div className="bg-white card">
+          <h2 className="mb-4 text-xl font-bold">Account Info</h2>
           <div className="space-y-2">
-            <p>
-              <span className="font-medium">Username:</span> {user?.username}
-            </p>
             <p>
               <span className="font-medium">Email:</span> {user?.email}
             </p>
@@ -128,14 +125,14 @@ const Profile: React.FC = () => {
             </p>
             <p>
               <span className="font-medium">Account Status:</span>{" "}
-              <span className="text-green-600 font-medium">Active</span>
+              <span className="font-medium text-green-600">Active</span>
             </p>
           </div>
         </div>
       </div>
 
       <div className="card">
-        <h2 className="text-xl font-bold mb-4">Recent Games</h2>
+        <h2 className="mb-4 text-xl font-bold">Recent Games</h2>
 
         {gameHistory.length === 0 ? (
           <p className="text-gray-500">No games played yet</p>
@@ -143,7 +140,7 @@ const Profile: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="bg-gray-50 text-left">
+                <tr className="text-left bg-gray-50">
                   <th className="px-4 py-2">Date</th>
                   <th className="px-4 py-2">Result</th>
                   <th className="px-4 py-2">Winnings</th>

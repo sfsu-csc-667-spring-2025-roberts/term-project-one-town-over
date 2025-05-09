@@ -19,7 +19,7 @@ interface Card {
 
 interface Player {
   id: string;
-  username: string;
+  email: string;
   chips: number;
   hand?: Card[];
   isActive: boolean;
@@ -47,10 +47,15 @@ interface GameState {
 }
 
 interface ChatMessage {
-  id: string;
-  user: string;
   message: string;
-  timestamp: string;
+  sender: string;
+  timestamp: number;
+  id?: string;
+}
+
+interface ServerPlayer {
+  player_id: string;
+  email: string;
 }
 
 const initialGameState: GameState = {
@@ -79,259 +84,259 @@ const GameRoom: React.FC = () => {
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
-  // Connect to socket.io server and initialize the game
+  // Connect to socket.io server
   useEffect(() => {
     // Initialize socket connection
     socketRef.current = io();
 
-    // Join the game room
-    socketRef.current.emit("join-game", { gameId, userId: user?.id });
-
-    // Listen for game state updates
-    socketRef.current.on("game-state-update", (gameState: GameState) => {
-      setGame(gameState);
-
-      // Find the current player in the updated game state
-      const player = gameState.players.find((p) => p.id === user?.id);
-      if (player) {
-        setCurrentPlayer(player);
-      }
-    });
-
     // Listen for chat messages
-    socketRef.current.on("game-chat-message", (message: ChatMessage) => {
+    socketRef.current.on(`chat-message:${gameId}`, (message: ChatMessage) => {
       setChatMessages((prev) => [...prev, message]);
     });
 
-    // Listen for game errors
-    socketRef.current.on("game-error", (error: any) => {
-      toast.error(error.message || "An error occurred in the game");
+    // Listen for player join events
+    socketRef.current.on(`game:${gameId}:player-joined`, (data) => {
+      toast.info(`${data.email} has joined the game`);
+
+      // Update player list if we have the game state
+      setGame((prevState) => {
+        // Deep copy of the current state
+        const newState = { ...prevState };
+
+        // Check if the player is already in the list
+        const existingPlayerIndex = newState.players.findIndex(
+          (p) => p.id === data.userId
+        );
+
+        if (existingPlayerIndex === -1) {
+          // Add the new player
+          newState.players.push({
+            id: data.userId,
+            email: data.email,
+            chips: 1000, // Default starting chips
+            isActive: true,
+            isDealer: false,
+            isTurn: false,
+            hasFolded: false,
+            currentBet: 0,
+            position: newState.players.length,
+          });
+        }
+
+        return newState;
+      });
     });
 
-    // Listen for game notifications
-    socketRef.current.on("game-notification", (notification: any) => {
-      toast.info(notification.message);
+    // Listen for player leave events
+    socketRef.current.on(`game:${gameId}:player-left`, (data) => {
+      toast.info(`A player has left the game`);
+
+      // Update player list if we have the game state
+      setGame((prevState) => {
+        // Deep copy of the current state
+        const newState = { ...prevState };
+
+        // Remove the player
+        newState.players = newState.players.filter((p) => p.id !== data.userId);
+
+        return newState;
+      });
     });
 
     // Cleanup on unmount
     return () => {
-      socketRef.current?.emit("leave-game", { gameId, userId: user?.id });
       socketRef.current?.disconnect();
     };
-  }, [gameId, user?.id]);
+  }, [gameId]);
 
   // Fetch initial game data
   useEffect(() => {
     const fetchGameData = async () => {
       try {
         setIsLoading(true);
-        // Fetch game data
-        const gameResponse = await axios.get(`/api/games/${gameId}`);
-        setGame(gameResponse.data.game || initialGameState);
 
-        // Find the current player
-        const player = gameResponse.data.game.players.find(
-          (p: Player) => p.id === user?.id
-        );
-        if (player) {
-          setCurrentPlayer(player);
+        // We don't have a proper JSON API endpoint yet, so we'll need to
+        // create a temporary game state with the players from the game
+        try {
+          const response = await axios.get(`/games/${gameId}`, {
+            headers: { Accept: "application/json" },
+          });
+
+          if (response.data && response.data.players) {
+            // Create a game state with the available data
+            const gameStateFromServer = {
+              ...initialGameState,
+              id: gameId || "",
+              name: response.data.name || `Game ${gameId}`,
+              players: response.data.players.map((p: ServerPlayer) => ({
+                id: p.player_id,
+                email: p.email,
+                chips: 1000, // Default starting chips
+                isActive: true,
+                isDealer: false,
+                isTurn: false,
+                hasFolded: false,
+                currentBet: 0,
+                position: 0, // Will be adjusted
+              })),
+            };
+
+            // Adjust player positions
+            gameStateFromServer.players.forEach((p: Player, i: number) => {
+              p.position = i;
+            });
+
+            setGame(gameStateFromServer);
+
+            // Find the current player
+            const player = gameStateFromServer.players.find(
+              (p: Player) => p.id === user?.id
+            );
+            if (player) {
+              setCurrentPlayer(player);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching game data:", error);
+
+          // For development, create mock data until API is fully implemented
+          const mockGame: GameState = {
+            id: gameId || "1",
+            name: `Game ${gameId}`,
+            status: "waiting",
+            players: [
+              {
+                id: user?.id || "1",
+                email: user?.email || "you@example.com",
+                chips: 1000,
+                isActive: true,
+                isDealer: true,
+                isTurn: true,
+                hasFolded: false,
+                currentBet: 0,
+                position: 0,
+                hand: [
+                  { suit: "hearts" as const, value: "A" },
+                  { suit: "diamonds" as const, value: "K" },
+                ],
+              },
+            ],
+            pot: 0,
+            currentBet: 0,
+            communityCards: [],
+            dealerPosition: 0,
+            currentTurn: user?.id || null,
+            round: "pre-flop",
+            winner: null,
+            smallBlind: 5,
+            bigBlind: 10,
+          };
+
+          setGame(mockGame);
+
+          // Set current player
+          const mockCurrentPlayer: Player = {
+            id: user?.id || "1",
+            email: user?.email || "you@example.com",
+            chips: 1000,
+            isActive: true,
+            isDealer: true,
+            isTurn: true,
+            hasFolded: false,
+            currentBet: 0,
+            position: 0,
+            hand: [
+              { suit: "hearts" as const, value: "A" },
+              { suit: "diamonds" as const, value: "K" },
+            ],
+          };
+
+          setCurrentPlayer(mockCurrentPlayer);
         }
-
-        // Fetch chat messages
-        const chatResponse = await axios.get(`/api/chat/game/${gameId}`);
-        setChatMessages(chatResponse.data.messages || []);
       } catch (error) {
-        console.error("Error fetching game data:", error);
+        console.error("Failed to load game:", error);
         toast.error("Failed to load the game");
-
-        // For demo purposes, let's set mock data
-        const mockGame: GameState = {
-          id: gameId || "1",
-          name: "Jack's Game",
-          status: "playing",
-          players: [
-            {
-              id: "1",
-              username: "jackrichards",
-              chips: 1000,
-              isActive: true,
-              isDealer: true,
-              isTurn: false,
-              hasFolded: false,
-              currentBet: 10,
-              position: 0,
-              hand: [
-                { suit: "hearts" as const, value: "A" },
-                { suit: "diamonds" as const, value: "K" },
-              ],
-            },
-            {
-              id: "2",
-              username: "hebertrujillo",
-              chips: 950,
-              isActive: true,
-              isDealer: false,
-              isTurn: true,
-              hasFolded: false,
-              currentBet: 5,
-              position: 1,
-            },
-            {
-              id: "3",
-              username: "nathandonat",
-              chips: 1200,
-              isActive: true,
-              isDealer: false,
-              isTurn: false,
-              hasFolded: false,
-              currentBet: 0,
-              position: 2,
-            },
-          ],
-          pot: 15,
-          currentBet: 10,
-          communityCards: [
-            { suit: "clubs" as const, value: "10" },
-            { suit: "hearts" as const, value: "J" },
-            { suit: "spades" as const, value: "Q" },
-          ],
-          dealerPosition: 0,
-          currentTurn: "2",
-          round: "flop",
-          winner: null,
-          smallBlind: 5,
-          bigBlind: 10,
-        };
-
-        setGame(mockGame);
-
-        // Set current player for demo
-        const mockCurrentPlayer: Player = {
-          id: user?.id || "1",
-          username: user?.username || "You",
-          chips: 1000,
-          isActive: true,
-          isDealer: true,
-          isTurn: false,
-          hasFolded: false,
-          currentBet: 10,
-          position: 0,
-          hand: [
-            { suit: "hearts" as const, value: "A" },
-            { suit: "diamonds" as const, value: "K" },
-          ],
-        };
-
-        setCurrentPlayer(mockCurrentPlayer);
-
-        // Set mock chat messages
-        setChatMessages([
-          {
-            id: "1",
-            user: "hebertrujillo",
-            message: "Good luck everyone!",
-            timestamp: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            user: "nathandonat",
-            message: "Let's play!",
-            timestamp: new Date().toISOString(),
-          },
-        ]);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchGameData();
-  }, [gameId, user?.id]);
+  }, [gameId, user?.id, user?.email]);
 
   // Game actions
   const handleBet = (amount: number) => {
-    socketRef.current?.emit("player-action", {
-      gameId,
-      userId: user?.id,
-      action: "bet",
-      amount,
-    });
+    console.log("Betting", amount);
+    // This would be implemented with actual game logic
   };
 
   const handleCall = () => {
-    socketRef.current?.emit("player-action", {
-      gameId,
-      userId: user?.id,
-      action: "call",
-    });
+    console.log("Calling");
+    // This would be implemented with actual game logic
   };
 
   const handleCheck = () => {
-    socketRef.current?.emit("player-action", {
-      gameId,
-      userId: user?.id,
-      action: "check",
-    });
+    console.log("Checking");
+    // This would be implemented with actual game logic
   };
 
   const handleFold = () => {
-    socketRef.current?.emit("player-action", {
-      gameId,
-      userId: user?.id,
-      action: "fold",
-    });
+    console.log("Folding");
+    // This would be implemented with actual game logic
   };
 
   const handleRaise = (amount: number) => {
-    socketRef.current?.emit("player-action", {
-      gameId,
-      userId: user?.id,
-      action: "raise",
-      amount,
-    });
+    console.log("Raising", amount);
+    // This would be implemented with actual game logic
   };
 
-  const handleLeaveGame = () => {
-    socketRef.current?.emit("leave-game", { gameId, userId: user?.id });
-    navigate("/lobby");
+  const handleLeaveGame = async () => {
+    try {
+      await axios.post("/games/leave", { gameId });
+      navigate("/lobby");
+    } catch (error) {
+      console.error("Error leaving game:", error);
+      toast.error("Failed to leave the game");
+    }
   };
 
   const handleSendMessage = (message: string) => {
     if (!message.trim()) return;
 
-    const chatMessage = {
-      id: Date.now().toString(),
-      user: user?.username || "Anonymous",
-      message: message.trim(),
-      timestamp: new Date().toISOString(),
-    };
-
-    socketRef.current?.emit("send-game-chat", {
-      gameId,
-      message: chatMessage,
+    // Send the message to the server
+    fetch(`/chat/${gameId}`, {
+      method: "post",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        message,
+      }),
+    }).catch((error) => {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
     });
-
-    // Optimistically add to our local state
-    setChatMessages((prev) => [...prev, chatMessage]);
   };
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[80vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="w-12 h-12 border-t-2 border-b-2 rounded-full animate-spin border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-4 px-4">
-      <div className="mb-4 flex justify-between items-center">
+    <div className="container px-4 py-4 mx-auto">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">{game.name}</h1>
         <button onClick={handleLeaveGame} className="btn btn-secondary">
           Leave Game
         </button>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col gap-6 lg:flex-row">
         {/* Game main area */}
         <div className="w-full lg:w-3/4">
           <div className="relative w-full">
@@ -356,10 +361,10 @@ const GameRoom: React.FC = () => {
             </div>
 
             {/* Player's hand and controls */}
-            <div className="card mb-6">
-              <h2 className="text-xl font-bold mb-4">Your Hand</h2>
+            <div className="mb-6 card">
+              <h2 className="mb-4 text-xl font-bold">Your Hand</h2>
               {currentPlayer ? (
-                <div className="flex flex-col md:flex-row md:items-center justify-between">
+                <div className="flex flex-col justify-between md:flex-row md:items-center">
                   <div>
                     <PlayerHand cards={currentPlayer.hand || []} />
                     <p className="mt-2">
@@ -401,17 +406,17 @@ const GameRoom: React.FC = () => {
             messages={chatMessages}
             onSendMessage={handleSendMessage}
             currentUserId={user?.id || ""}
-            currentUsername={user?.username || ""}
+            currentUsername={user?.email || ""}
           />
         </div>
       </div>
 
       {/* Game winner notification */}
       {game.winner && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full text-center">
-            <h2 className="text-2xl font-bold mb-4">Game Over!</h2>
-            <p className="text-xl mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="w-full max-w-md p-8 text-center bg-white rounded-lg">
+            <h2 className="mb-4 text-2xl font-bold">Game Over!</h2>
+            <p className="mb-6 text-xl">
               <span className="font-medium">{game.winner}</span> wins the pot of{" "}
               <span className="font-medium text-accent">${game.pot}</span>!
             </p>
