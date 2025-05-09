@@ -26,6 +26,7 @@ npm run start:dev
 
 ```
 cd frontend
+npm start
 ```
 
 ## Other links
