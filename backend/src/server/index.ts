@@ -9,7 +9,7 @@ import connectLivereload from "connect-livereload";
 import * as routes from "./routes";
 import setupSession from "./config/sessions";
 import { authMiddleware } from "./middleware/auth";
-import { roomMiddleware } from "./middleware/room"; 
+import { roomMiddleware } from "./middleware/room";
 import configureSockets from "./config/sockets";
 import * as http from "http";
 import { Server } from "socket.io";
@@ -23,13 +23,13 @@ const PORT = process.env.Port || 3000;
 
 app.use(roomMiddleware);
 
-if(process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== "production") {
   const reloadServer = livereload.createServer();
 
   reloadServer.watch(path.join(process.cwd(), "public", "js"));
 
-  reloadServer.server.once("connection", () =>{
-    setTimeout(()=> {
+  reloadServer.server.once("connection", () => {
+    setTimeout(() => {
       reloadServer.refresh("/");
     }, 100);
   });
@@ -39,7 +39,6 @@ if(process.env.NODE_ENV !== "production") {
 
 setupSession(app);
 configureSockets(io, app);
-
 
 app.use(morgan("dev"));
 
@@ -60,6 +59,9 @@ app.use("/auth", routes.auth);
 app.use("/lobby", authMiddleware, routes.lobby);
 app.use("/chat", authMiddleware, routes.chat);
 app.use("/games", authMiddleware, routes.games);
+app.use("/profile", authMiddleware, routes.users);
+// API routes
+app.use("/api/users", authMiddleware, routes.users);
 
 app.use((_request, response, next) => {
   next(httpErrors(404));

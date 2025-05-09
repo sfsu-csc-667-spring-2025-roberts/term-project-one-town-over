@@ -13,6 +13,7 @@ interface Game {
   maxPlayers: number;
   status: "waiting" | "playing" | "ended";
   createdAt: string;
+  hasPassword?: boolean;
 }
 
 interface ChatMessage {
@@ -37,6 +38,13 @@ const Lobby: React.FC = () => {
   const [newGameMaxPlayers, setNewGameMaxPlayers] = useState(4);
   const [newGamePassword, setNewGamePassword] = useState("");
 
+  // For password-protected games
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [selectedGameId, setSelectedGameId] = useState<string | number | null>(
+    null
+  );
+  const [gamePassword, setGamePassword] = useState("");
+
   // Connect to socket.io server
   useEffect(() => {
     // Initialize socket connection
@@ -53,6 +61,7 @@ const Lobby: React.FC = () => {
           players: 1, // Just created, so 1 player (the host)
           maxPlayers: gameData.gameMaxPlayers,
           status: "waiting",
+          hasPassword: gameData.gamePassword,
           createdAt: new Date().toISOString(),
         },
         ...prevGames,
@@ -97,6 +106,7 @@ const Lobby: React.FC = () => {
               players: 2,
               maxPlayers: 6,
               status: "waiting",
+              hasPassword: false,
               createdAt: new Date().toISOString(),
             },
             {
@@ -106,6 +116,7 @@ const Lobby: React.FC = () => {
               players: 5,
               maxPlayers: 6,
               status: "playing",
+              hasPassword: true,
               createdAt: new Date().toISOString(),
             },
             {
@@ -115,6 +126,7 @@ const Lobby: React.FC = () => {
               players: 3,
               maxPlayers: 8,
               status: "waiting",
+              hasPassword: false,
               createdAt: new Date().toISOString(),
             },
           ]);
@@ -200,19 +212,50 @@ const Lobby: React.FC = () => {
     }
   };
 
-  const handleJoinGame = async (gameId: string | number) => {
+  const initiateJoinGame = (gameId: string | number) => {
+    // Find the game to check if it has a password
+    const game = games.find((g) => g.id === gameId);
+
+    if (game?.hasPassword) {
+      // If it has a password, open the password modal
+      setSelectedGameId(gameId);
+      setGamePassword("");
+      setShowPasswordModal(true);
+    } else {
+      // If no password, join directly
+      joinGame(gameId, "");
+    }
+  };
+
+  const joinGame = async (gameId: string | number, password: string) => {
     try {
       const response = await axios.post("/games/join", {
         gameId,
-        gamePassword: "", // If needed, implement password prompt
+        gamePassword: password,
       });
 
       if (response.status === 200) {
         navigate(`/games/${gameId}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error joining game:", error);
-      toast.error("Failed to join game");
+
+      if (error.response && error.response.status === 403) {
+        toast.error("Incorrect password");
+      } else if (error.response && error.response.status === 400) {
+        toast.error("Game is full");
+      } else {
+        toast.error("Failed to join game");
+      }
+    }
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (selectedGameId) {
+      joinGame(selectedGameId, gamePassword);
+      setShowPasswordModal(false);
     }
   };
 
@@ -257,7 +300,15 @@ const Lobby: React.FC = () => {
                 <div key={game.id} className="card">
                   <div className="flex flex-col justify-between md:flex-row md:items-center">
                     <div>
-                      <h2 className="mb-2 text-xl font-bold">{game.name}</h2>
+                      <h2 className="mb-2 text-xl font-bold">
+                        {game.name}
+                        {game.hasPassword && (
+                          <span className="ml-2 text-xs text-gray-500">
+                            <i className="fa fa-lock" aria-hidden="true"></i>{" "}
+                            Password Protected
+                          </span>
+                        )}
+                      </h2>
                       <p className="mb-2 text-gray-600">
                         Hosted by: {game.host}
                       </p>
@@ -291,7 +342,7 @@ const Lobby: React.FC = () => {
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleJoinGame(game.id)}
+                          onClick={() => initiateJoinGame(game.id)}
                           className="btn btn-primary"
                         >
                           Join Game
@@ -472,6 +523,52 @@ const Lobby: React.FC = () => {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   Create Game
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50">
+          <div className="w-full max-w-md p-6 bg-white rounded-lg">
+            <h2 className="mb-4 text-xl font-bold">Enter Game Password</h2>
+            <p className="mb-4 text-gray-600">
+              This game is password protected. Please enter the password to
+              join.
+            </p>
+
+            <form onSubmit={handlePasswordSubmit}>
+              <div className="mb-4">
+                <label
+                  htmlFor="game-password"
+                  className="block mb-2 text-gray-700"
+                >
+                  Password
+                </label>
+                <input
+                  id="game-password"
+                  type="password"
+                  className="input"
+                  placeholder="Enter the game password"
+                  value={gamePassword}
+                  onChange={(e) => setGamePassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end space-x-4">
+                <button
+                  type="button"
+                  className="text-gray-800 bg-gray-200 btn hover:bg-gray-300"
+                  onClick={() => setShowPasswordModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Join Game
                 </button>
               </div>
             </form>

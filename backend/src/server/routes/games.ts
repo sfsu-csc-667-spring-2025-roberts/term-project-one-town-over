@@ -54,39 +54,129 @@ router.post("/create", async (request: Request, response: Response) => {
 router.post("/join", async (request: Request, response: Response) => {
   //@ts-ignore
   const { id: userId, email } = request.session.user;
-  const { gameId, gamePassword } = request.body;
+  const { gameId, gamePassword = "" } = request.body;
 
   try {
-    const player_count = await Game.conditionalJoin(
-      gameId,
-      userId,
+    // First check if the player is already in the game
+    const isInGame = await Game.isPlayerInGame(parseInt(gameId), userId);
+    if (isInGame) {
+      return response.redirect(`/games/${gameId}`);
+    }
+
+    // Check if the game exists
+    const gameExists = await checkGameExists(parseInt(gameId));
+    if (!gameExists) {
+      return response.status(404).json({ error: "Game not found" });
+    }
+
+    // Check if the game is full
+    const currentPlayers = await Game.playerCount(parseInt(gameId));
+    const maxPlayers = await getGameMaxPlayers(parseInt(gameId));
+    if (currentPlayers >= maxPlayers) {
+      return response.status(400).json({ error: "Game is full" });
+    }
+
+    // Check if password is correct
+    const correctPassword = await checkGamePassword(
+      parseInt(gameId),
       gamePassword
     );
+    if (!correctPassword) {
+      return response.status(403).json({ error: "Incorrect password" });
+    }
+
+    // Join the game
+    await Game.join(parseInt(gameId), userId);
+    const player_count = await Game.playerCount(parseInt(gameId));
 
     const io = request.app.get<Server>("io");
     io.emit(`game:${gameId}:player-joined`, { player_count, userId, email });
 
-    response.redirect(`/games/${gameId}`);
+    // Respond based on request type
+    if (
+      request.headers.accept &&
+      request.headers.accept.includes("application/json")
+    ) {
+      return response.json({ success: true, redirect: `/games/${gameId}` });
+    } else {
+      return response.redirect(`/games/${gameId}`);
+    }
   } catch (error) {
     console.error("Error joining game:", error);
-    response.status(500).send("Error joining game");
+    if (
+      request.headers.accept &&
+      request.headers.accept.includes("application/json")
+    ) {
+      return response.status(500).json({ error: "Error joining game" });
+    } else {
+      return response.status(500).send("Error joining game");
+    }
   }
 });
 
+// Helper functions
+async function checkGameExists(gameId: number) {
+  try {
+    const { count } = await db.one(
+      `SELECT COUNT(*) FROM "games-test" WHERE id = $1`,
+      [gameId]
+    );
+    return parseInt(count, 10) > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function getGameMaxPlayers(gameId: number) {
+  try {
+    const { max_players } = await db.one(
+      `SELECT max_players FROM "games-test" WHERE id = $1`,
+      [gameId]
+    );
+    return max_players;
+  } catch (error) {
+    return 0;
+  }
+}
+
+async function checkGamePassword(gameId: number, password: string) {
+  try {
+    // Get the stored password
+    const { password: storedPassword } = await db.one(
+      `SELECT password FROM "games-test" WHERE id = $1`,
+      [gameId]
+    );
+
+    // If there's no password on the game, any password is valid
+    if (!storedPassword) {
+      return true;
+    }
+
+    // Otherwise, passwords must match exactly
+    return storedPassword === password;
+  } catch (error) {
+    console.error("Error checking game password:", error);
+    return false;
+  }
+}
+
 router.get("/list", async (request: Request, response: Response) => {
   try {
-    const availableGames = await db.any<GameRecord>(`
-            SELECT g.id, g.name, g.max_players, 
-            (SELECT COUNT(*) FROM "game-players-test" gp WHERE gp.game_id = g.id) as player_count
-            FROM "games-test" g
-        `);
+    const availableGames = await db.any<
+      GameRecord & { password: string | null }
+    >(
+      `SELECT g.id, g.name, g.max_players, g.password,
+      (SELECT COUNT(*) FROM "game-players-test" gp WHERE gp.game_id = g.id) as player_count
+      FROM "games-test" g`
+    );
 
-    const games = availableGames.map((game: GameRecord) => ({
+    const games = availableGames.map((game) => ({
       id: game.id,
       name: game.name,
       players: parseInt(game.player_count),
       maxPlayers: game.max_players,
       status: "waiting", // You would need to add a status field to your database
+      hasPassword: !!game.password && game.password.trim() !== "",
       createdAt: new Date().toISOString(),
     }));
 
