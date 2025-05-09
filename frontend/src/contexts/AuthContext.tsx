@@ -55,8 +55,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}:${process.env.REACT_APP_BACKEND_PORT}/auth/login`, { email, password });
-      setUser(response.data);
+      const response = await axios.post("/api/auth/login", { email, password });
+      setUser(response.data.user);
       toast.success("Successfully logged in!");
     } catch (error) {
       console.error("Login error", error);
@@ -74,12 +74,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   ) => {
     try {
       setIsLoading(true);
-      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}:${process.env.REACT_APP_BACKEND_PORT}/auth/register`, {
+      const response = await axios.post("/api/auth/register", {
         username,
         email,
         password,
       });
-      setUser(response.data);
+      setUser(response.data.user);
       toast.success("Registration successful!");
     } catch (error) {
       console.error("Registration error", error);
@@ -92,7 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await axios.post(`${process.env.REACT_APP_BACKEND_URL}:${process.env.REACT_APP_BACKEND_PORT}/auth/logout`);
+      await axios.post("/api/auth/logout");
       setUser(null);
       toast.success("Successfully logged out!");
     } catch (error) {
