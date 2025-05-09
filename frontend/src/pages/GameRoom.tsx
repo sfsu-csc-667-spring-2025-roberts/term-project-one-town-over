@@ -360,41 +360,66 @@ const GameRoom: React.FC = () => {
               />
             </div>
 
-            {/* Player's hand and controls */}
-            <div className="mb-6 card">
-              <h2 className="mb-4 text-xl font-bold">Your Hand</h2>
+            {/* Player's hand and controls - Updated to match new styling */}
+            <div className="p-4 mb-6 rounded-lg shadow-md bg-gradient-to-r from-secondary/10 to-primary/10">
+              <h2 className="mb-3 text-xl font-bold text-primary">Your Hand</h2>
               {currentPlayer ? (
-                <div className="flex flex-col justify-between md:flex-row md:items-center">
-                  <div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  {/* Left side - player cards and info */}
+                  <div className="p-4 rounded-lg shadow-sm bg-white/80">
                     <PlayerHand cards={currentPlayer.hand || []} />
-                    <p className="mt-2">
-                      <span className="font-medium">Chips:</span>{" "}
-                      {currentPlayer.chips}
-                    </p>
-                    <p>
-                      <span className="font-medium">Current Bet:</span>{" "}
-                      {currentPlayer.currentBet}
-                    </p>
+                    <div className="flex justify-between p-2 mt-3 bg-gray-100 rounded-md">
+                      <div>
+                        <span className="text-sm font-medium">Chips:</span>
+                        <span className="ml-2 font-bold text-primary">
+                          ${currentPlayer.chips}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium">
+                          Current Bet:
+                        </span>
+                        <span className="ml-2 font-bold text-accent">
+                          ${currentPlayer.currentBet}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Player status indicator */}
+                    <div className="mt-3 text-center">
+                      {currentPlayer.isTurn ? (
+                        <div className="inline-block px-3 py-1 text-sm font-medium text-white rounded-full bg-accent animate-pulse">
+                          Your Turn
+                        </div>
+                      ) : (
+                        <div className="inline-block px-3 py-1 text-sm font-medium text-gray-600 bg-gray-200 rounded-full">
+                          Waiting
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Betting controls */}
-                  <BettingControls
-                    onBet={handleBet}
-                    onCall={handleCall}
-                    onCheck={handleCheck}
-                    onFold={handleFold}
-                    onRaise={handleRaise}
-                    isPlayerTurn={currentPlayer.isTurn}
-                    currentBet={game.currentBet}
-                    playerBet={currentPlayer.currentBet}
-                    playerChips={currentPlayer.chips}
-                    minRaise={game.bigBlind}
-                  />
+                  {/* Right side - betting controls */}
+                  <div className="flex items-center justify-center p-4 rounded-lg shadow-sm bg-white/80">
+                    <BettingControls
+                      onBet={handleBet}
+                      onCall={handleCall}
+                      onCheck={handleCheck}
+                      onFold={handleFold}
+                      onRaise={handleRaise}
+                      isPlayerTurn={currentPlayer.isTurn}
+                      currentBet={game.currentBet}
+                      playerBet={currentPlayer.currentBet}
+                      playerChips={currentPlayer.chips}
+                      minRaise={game.bigBlind}
+                    />
+                  </div>
                 </div>
               ) : (
-                <p className="text-gray-500">
-                  You are not currently in this game.
-                </p>
+                <div className="p-6 text-center rounded-lg bg-white/80">
+                  <p className="text-gray-500">
+                    You are not currently in this game.
+                  </p>
+                </div>
               )}
             </div>
           </div>
