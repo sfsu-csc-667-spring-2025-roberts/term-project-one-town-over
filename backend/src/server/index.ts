@@ -69,6 +69,7 @@ app.use("/lobby", authMiddleware, routes.lobby);
 app.use("/chat", authMiddleware, routes.chat);
 app.use("/games", authMiddleware, routes.games);
 app.use("/profile", authMiddleware, routes.users);
+app.use("/hands", authMiddleware, routes.hands);
 // API routes
 app.use("/api/users", authMiddleware, routes.users);
 
