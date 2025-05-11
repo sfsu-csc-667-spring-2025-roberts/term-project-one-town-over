@@ -1,6 +1,5 @@
 import express from "express";
 import {Request, Response} from "express";
-import bcrypt from "bcrypt";
 
 import  User from "../db/users"
 
@@ -16,6 +15,19 @@ router.get("/register", async (request: Request, response: Response) => {
 });
 
 router.post("/register", async (request: Request, response: Response) => {
+    // const {email, password, username} = request.body;
+
+    // try {
+    //     const user = await User.register(email, password, username);
+
+    //     response.json(user);
+    // } catch(error) {
+    //     console.error(error);
+    //     response.status(401).json({
+    //         success: false,
+    //         message: "Failed to register",
+    //     });
+    // }
     const {email, password} = request.body;
 
     try{
@@ -39,7 +51,6 @@ router.get("/login", async (request: Request, response: Response) => {
     }
 
     response.render("auth/login");
-
 });
 
 router.post("/login", async (request: Request, response: Response) => {
@@ -54,9 +65,14 @@ router.post("/login", async (request: Request, response: Response) => {
         console.log("Stored userEmail in session:", user.email); 
 
         response.redirect("/lobby")
+        // response.json(user);
     }
     catch(error){
         response.render("auth/login",{error: "Invalid email or password"});
+        // response.status(401).json({
+        //     success: false,
+        //     message: "Failed to login",
+        // });
     }
     
 });

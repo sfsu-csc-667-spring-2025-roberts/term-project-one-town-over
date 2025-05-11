@@ -9,11 +9,11 @@ import connectLivereload from "connect-livereload";
 import * as routes from "./routes";
 import setupSession from "./config/sessions";
 import { authMiddleware } from "./middleware/auth";
-import { roomMiddleware } from "./middleware/room"; 
+import { roomMiddleware } from "./middleware/room";
 import configureSockets from "./config/sockets";
 import * as http from "http";
 import { Server } from "socket.io";
-
+const cors = require("cors");
 
 dotenv.config();
 
@@ -22,15 +22,16 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.Port || 3000;
 
+app.use(cors());
 app.use(roomMiddleware);
 
-if(process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== "production") {
   const reloadServer = livereload.createServer();
 
   reloadServer.watch(path.join(process.cwd(), "public", "js"));
 
-  reloadServer.server.once("connection", () =>{
-    setTimeout(()=> {
+  reloadServer.server.once("connection", () => {
+    setTimeout(() => {
       reloadServer.refresh("/");
     }, 100);
   });
@@ -41,14 +42,11 @@ if(process.env.NODE_ENV !== "production") {
 setupSession(app);
 configureSockets(io, app);
 
-
 app.use(morgan("dev"));
 
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: false }));
-
-
 app.use(cookieParser());
 
 app.use("/public", express.static(path.join(process.cwd(), "public")));
@@ -59,13 +57,20 @@ app.set("view engine", "ejs");
 app.use("/", routes.root);
 app.use("/test", routes.test);
 app.use("/auth", routes.auth);
+// These routes don't exist yet in the codebase
+// app.use("/game_rooms", routes.game_rooms);
+// app.use("/players", routes.players);
+// app.use("/game_rounds", routes.game_rounds);
+// app.use("/cards", routes.cards);
+// app.use("/community_cards", routes.community_cards);
+// app.use("/player_hands", routes.player_hands);
 
 app.use("/lobby", authMiddleware, routes.lobby);
 app.use("/chat", authMiddleware, routes.chat);
 app.use("/games", authMiddleware, routes.games);
-
-
-
+app.use("/profile", authMiddleware, routes.users);
+// API routes
+app.use("/api/users", authMiddleware, routes.users);
 
 app.use((_request, response, next) => {
   next(httpErrors(404));
