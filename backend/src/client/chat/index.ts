@@ -3,37 +3,41 @@ import type { ChatMessage } from "../../types/global";
 
 const roomId = document.querySelector<HTMLInputElement>("input#userId")?.value;
 const parent = document.querySelector("section#chat div");
-const messageInput = document.querySelector<HTMLInputElement>("section#chat form input[name=message]");
+const messageInput = document.querySelector<HTMLInputElement>(
+  "section#chat form input[name=message]"
+);
 
 console.log("Chat room ID linked:", roomId);
 
-
-document.querySelector("section#chat form.chat-form")?.addEventListener("submit", (event) => {
+document
+  .querySelector("section#chat form.chat-form")
+  ?.addEventListener("submit", (event) => {
     event.preventDefault();
 
     const message = messageInput?.value;
     messageInput!.value = "";
 
-    if(message?.trim().length === 0) {
-        return; 
+    if (message?.trim().length === 0) {
+      return;
     }
 
     console.log("Sending message", message);
     console.log("Room ID", roomId);
-    
-    fetch(`/chat/${roomId}`, {
-        method: "post",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            message
-        }),
-    });
 
+    fetch(`/chat/${roomId}`, {
+      method: "post",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        message,
+      }),
     });
-socket.on(`chat-message:${roomId}`, ({message, sender, timestamp}:ChatMessage)  => {
+  });
+socket.on(
+  `chat-message:${roomId}`,
+  ({ message, sender, timestamp }: ChatMessage) => {
     const container = document.createElement("div");
     container.className = "chat-message";
 
@@ -57,8 +61,8 @@ socket.on(`chat-message:${roomId}`, ({message, sender, timestamp}:ChatMessage)  
     container.appendChild(senderText);
     container.appendChild(space2);
     container.appendChild(messageText);
-    
-    parent?.appendChild(container);
-    parent?.scrollTo({top: parent.scrollHeight, behavior: "smooth"});
 
-});
+    parent?.appendChild(container);
+    parent?.scrollTo({ top: parent.scrollHeight, behavior: "smooth" });
+  }
+);

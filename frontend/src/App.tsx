@@ -24,13 +24,17 @@ const App: React.FC = () => {
         <Routes>
           {/* Public routes */}
           <Route
-            path="/login"
+            path="/auth/login"
             element={isAuthenticated ? <Navigate to="/lobby" /> : <Login />}
           />
           <Route
-            path="/register"
+            path="/auth/register"
             element={isAuthenticated ? <Navigate to="/lobby" /> : <Register />}
           />
+
+          {/* Redirect old routes to new ones */}
+          <Route path="/login" element={<Navigate to="/auth/login" />} />
+          <Route path="/register" element={<Navigate to="/auth/register" />} />
 
           {/* Protected routes */}
           <Route path="/" element={<Navigate to="/lobby" />} />
@@ -43,7 +47,7 @@ const App: React.FC = () => {
             }
           />
           <Route
-            path="/game/:gameId"
+            path="/games/:gameId"
             element={
               <ProtectedRoute>
                 <GameRoom />

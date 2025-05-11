@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 const Register: React.FC = () => {
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,7 +22,7 @@ const Register: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await register(username, email, password);
+      await register(email, password);
       // Redirect handled by ProtectedRoute
     } catch (err) {
       setError("Registration failed. Please try again.");
@@ -42,7 +41,7 @@ const Register: React.FC = () => {
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{" "}
             <Link
-              to="/login"
+              to="/auth/login"
               className="font-medium text-primary hover:text-primary-dark"
             >
               sign in to your account
@@ -60,21 +59,6 @@ const Register: React.FC = () => {
           )}
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="username" className="sr-only">
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                className="input rounded-t-md"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
-            <div>
               <label htmlFor="email-address" className="sr-only">
                 Email address
               </label>
@@ -84,7 +68,7 @@ const Register: React.FC = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="input"
+                className="input rounded-t-md"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

@@ -1,23 +1,22 @@
 import React, { useState, useRef, useEffect } from "react";
 
 interface ChatMessage {
-  id: string;
-  user: string;
   message: string;
-  timestamp: string;
+  sender: string;
+  timestamp: number;
+  id?: string; // Optional ID field (will be generated if needed)
 }
 
 interface ChatBoxProps {
   messages: ChatMessage[];
   onSendMessage: (message: string) => void;
-  currentUserId: string;
+  currentUserId?: string;
   currentUsername: string;
 }
 
 const ChatBox: React.FC<ChatBoxProps> = ({
   messages,
   onSendMessage,
-  // currentUserId,
   currentUsername,
 }) => {
   const [newMessage, setNewMessage] = useState("");
@@ -51,16 +50,16 @@ const ChatBox: React.FC<ChatBoxProps> = ({
             </p>
           </div>
         ) : (
-          messages.map((msg) => (
+          messages.map((msg, index) => (
             <div
-              key={msg.id}
+              key={msg.id || `msg-${index}`}
               className={`flex ${
-                msg.user === currentUsername ? "justify-end" : "justify-start"
+                msg.sender === currentUsername ? "justify-end" : "justify-start"
               }`}
             >
               <div
                 className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  msg.user === currentUsername
+                  msg.sender === currentUsername
                     ? "bg-primary text-white rounded-tr-none"
                     : "bg-gray-200 text-gray-800 rounded-tl-none"
                 }`}
@@ -68,16 +67,16 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                 <div className="flex justify-between items-center mb-1">
                   <span
                     className={`text-xs font-medium ${
-                      msg.user === currentUsername
+                      msg.sender === currentUsername
                         ? "text-white"
                         : "text-gray-600"
                     }`}
                   >
-                    {msg.user}
+                    {msg.sender}
                   </span>
                   <span
                     className={`text-xs ${
-                      msg.user === currentUsername
+                      msg.sender === currentUsername
                         ? "text-white/70"
                         : "text-gray-500"
                     }`}

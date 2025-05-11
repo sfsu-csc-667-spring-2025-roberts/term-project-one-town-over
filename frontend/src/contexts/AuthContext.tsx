@@ -4,7 +4,6 @@ import { toast } from "react-toastify";
 
 interface User {
   id: string;
-  username: string;
   email: string;
 }
 
@@ -13,12 +12,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (
-    username: string,
-    email: string,
-    password: string
-  ) => Promise<void>;
-  logout: () => void;
+  register: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -34,16 +29,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Check if user is already logged in via session
     const checkAuthStatus = async () => {
       try {
-        const response = await axios.get("/api/auth/me");
-        if (response.data.user) {
+        // We'll make a request to any authenticated endpoint to check if we're logged in
+        // If the session is valid, our credentials will be sent with the request
+        const response = await axios.get("/lobby", {
+          headers: { Accept: "application/json" },
+        });
+        if (response.data && response.data.user) {
           setUser(response.data.user);
         }
       } catch (error) {
-        // User is not authenticated
-        console.error("Not authenticated", error);
+        // User is not authenticated, that's okay
+        console.log("Not authenticated yet");
       } finally {
         setIsLoading(false);
       }
@@ -55,9 +54,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const response = await axios.post("/api/auth/login", { email, password });
-      setUser(response.data.user);
-      toast.success("Successfully logged in!");
+      const response = await axios.post(
+        "/auth/login",
+        { email, password },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Since we use session-based auth, we need to check if login was successful
+      // and then get the user data
+      if (response.status === 200) {
+        const userResponse = await axios.get("/lobby", {
+          headers: { Accept: "application/json" },
+        });
+        if (userResponse.data && userResponse.data.user) {
+          setUser(userResponse.data.user);
+          toast.success("Successfully logged in!");
+        }
+      }
     } catch (error) {
       console.error("Login error", error);
       toast.error("Login failed. Please check your credentials.");
@@ -67,20 +84,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (
-    username: string,
-    email: string,
-    password: string
-  ) => {
+  const register = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const response = await axios.post("/api/auth/register", {
-        username,
-        email,
-        password,
-      });
-      setUser(response.data.user);
-      toast.success("Registration successful!");
+      const response = await axios.post(
+        "/auth/register",
+        {
+          email,
+          password,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Since we use session-based auth, check if registration was successful
+      if (response.status === 200) {
+        const userResponse = await axios.get("/lobby", {
+          headers: { Accept: "application/json" },
+        });
+        if (userResponse.data && userResponse.data.user) {
+          setUser(userResponse.data.user);
+          toast.success("Registration successful!");
+        }
+      }
     } catch (error) {
       console.error("Registration error", error);
       toast.error("Registration failed. Please try again.");
@@ -92,12 +121,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await axios.post("/api/auth/logout");
+      await axios.get("/auth/logout");
       setUser(null);
       toast.success("Successfully logged out!");
     } catch (error) {
       console.error("Logout error", error);
       toast.error("Logout failed.");
+      throw error;
     }
   };
 
