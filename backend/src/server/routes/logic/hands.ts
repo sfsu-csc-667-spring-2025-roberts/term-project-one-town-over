@@ -51,7 +51,6 @@ function formatCard(card: Card): string {
 router.post('/evaluate', (req: Request<{}, {}, EvaluateRequest>, res: Response) => {
   const { players, communityCards } = req.body;
 
-  // Validate input
   if (!Array.isArray(players) || players.length < 2) {
     return res.status(400).json({ error: 'At least 2 players are required.' });
   }
@@ -59,8 +58,6 @@ router.post('/evaluate', (req: Request<{}, {}, EvaluateRequest>, res: Response) 
   if (!Array.isArray(communityCards) || communityCards.length !== 5) {
     return res.status(400).json({ error: 'Exactly 5 community cards are required.' });
   }
-
-  const formattedCommunity = communityCards.map(formatCard);
 
   const results = players.map((player) => {
     if (player.holeCards.length !== 2) {
@@ -70,11 +67,7 @@ router.post('/evaluate', (req: Request<{}, {}, EvaluateRequest>, res: Response) 
     const fullHand = [...player.holeCards, ...communityCards];
     const formattedHand = fullHand.map(formatCard);
 
-    console.log("Formated hand: ", formattedHand);
-
     const evaluated = PokerEvaluator.evalHand(formattedHand);
-
-    console.log("Evaluated: ", evaluated);
 
     return {
       id: player.id,
@@ -85,7 +78,6 @@ router.post('/evaluate', (req: Request<{}, {}, EvaluateRequest>, res: Response) 
     };
   });
 
-  // Determine the highest hand rank
   const highestValue = Math.max(...results.map((r) => r.value));
   const winners = results.filter((r) => r.value === highestValue);
 
@@ -93,6 +85,64 @@ router.post('/evaluate', (req: Request<{}, {}, EvaluateRequest>, res: Response) 
     winners,
     results,
   });
+});
+
+const SUITS: Card["suit"][] = ["hearts", "diamonds", "clubs", "spades"];
+const VALUES: Card["value"][] = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+
+function createDeck(): Card[] {
+  const deck: Card[] = [];
+  for (const suit of SUITS) {
+    for (const value of VALUES) {
+      deck.push({ suit, value });
+    }
+  }
+  return deck;
+}
+
+function shuffle<T>(array: T[]): T[] {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+router.post("/deal", (req: Request, res: Response) => {
+  const {
+    playerCount,
+    hideCards = true,
+  }: {
+    playerCount: number;
+    hideCards?: boolean;
+  } = req.body;
+
+  if (!playerCount || playerCount < 2 || playerCount > 10) {
+    return res.status(400).json({ error: "Player count must be between 2 and 10." });
+  }
+
+  const deck = shuffle(createDeck());
+
+  const players: any[] = [];
+  for (let i = 0; i < playerCount; i++) {
+    const holeCards = [deck.pop()!, deck.pop()!];
+
+    players.push({
+      id: `player${i + 1}`,
+      holeCards: hideCards ? ["hidden", "hidden"] : holeCards,
+      actualCards: hideCards ? holeCards : undefined,
+    });
+  }
+
+  const communityCards = [
+    deck.pop()!,
+    deck.pop()!,
+    deck.pop()!,
+    deck.pop()!,
+    deck.pop()!,
+  ];
+
+  res.json({ players, communityCards });
 });
 
 export default router;

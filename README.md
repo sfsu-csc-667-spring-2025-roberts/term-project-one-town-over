@@ -4,8 +4,8 @@
 
 ## Team Members
 
-1. Heber Trujillo Cruz (Lead)
-2. Nathan Donat Filliod
+1. Nathan Donat Filliod (Lead)
+2. Heber Trujillo Cruz
 3. Jack Richards
 
 ## How to clone the repository
@@ -26,6 +26,7 @@ npm run start:dev
 
 ```
 cd frontend
+npm i
 npm start
 ```
 
