@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import * as PokerEvaluator from 'poker-evaluator';
+import { Game } from '../../db/index';
 
 const router = express.Router();
 
@@ -108,41 +109,66 @@ function shuffle<T>(array: T[]): T[] {
   return array;
 }
 
-router.post("/deal", (req: Request, res: Response) => {
+router.post("/deal", async (req: Request, res: Response) => {
   const {
-    playerCount,
-    hideCards = true,
+    hideCards = false,
+    gameId,
   }: {
-    playerCount: number;
     hideCards?: boolean;
+    gameId: number;
   } = req.body;
-
-  if (!playerCount || playerCount < 2 || playerCount > 10) {
-    return res.status(400).json({ error: "Player count must be between 2 and 10." });
-  }
 
   const deck = shuffle(createDeck());
 
-  const players: any[] = [];
-  for (let i = 0; i < playerCount; i++) {
-    const holeCards = [deck.pop()!, deck.pop()!];
+  try {
+    const playersFromDb = await Game.getPlayersInGame(gameId);
 
-    players.push({
-      id: `player${i + 1}`,
-      holeCards: hideCards ? ["hidden", "hidden"] : holeCards,
-      actualCards: hideCards ? holeCards : undefined,
+    const players: any[] = [];
+
+    for (const player of playersFromDb) {
+      const holeCards = [deck.pop()!, deck.pop()!];
+
+      const insertedCard1 = await Game.createCard(gameId, holeCards[0].suit, holeCards[0].value);
+      const insertedCard2 = await Game.createCard(gameId, holeCards[1].suit, holeCards[1].value);
+
+      const card1Id = insertedCard1[0].card_id;
+      const card2Id = insertedCard2[0].card_id;
+
+      await Game.assignPlayerCards(player.player_id, card1Id, card2Id);
+
+      players.push({
+        id: player.player_id,
+        email: player.email,
+        holeCards: hideCards ? ["hidden", "hidden"] : holeCards,
+        actualCards: hideCards ? holeCards : undefined,
+      });
+    }
+
+    const communityCards = [
+      deck.pop()!,
+      deck.pop()!,
+      deck.pop()!,
+      deck.pop()!,
+      deck.pop()!,
+    ];
+
+    const communityCardIds: number[] = [];
+
+    for (const card of communityCards) {
+      const insertedCard = await Game.createCard(gameId, card.suit, card.value);
+      communityCardIds.push(insertedCard[0].card_id);
+    }
+
+    await Game.createCommunityCards(gameId, communityCardIds);
+
+    res.json({
+      players,
+      communityCards: hideCards ? ["hidden", "hidden", "hidden", "hidden", "hidden"] : communityCards,
     });
+  } catch (error) {
+    console.error("Deal error:", error);
+    res.status(500).json({ error: "Internal server error during dealing." });
   }
-
-  const communityCards = [
-    deck.pop()!,
-    deck.pop()!,
-    deck.pop()!,
-    deck.pop()!,
-    deck.pop()!,
-  ];
-
-  res.json({ players, communityCards });
 });
 
 export default router;

@@ -57,13 +57,6 @@ app.set("view engine", "ejs");
 app.use("/", routes.root);
 app.use("/test", routes.test);
 app.use("/auth", routes.auth);
-// These routes don't exist yet in the codebase
-// app.use("/game_rooms", routes.game_rooms);
-// app.use("/players", routes.players);
-// app.use("/game_rounds", routes.game_rounds);
-// app.use("/cards", routes.cards);
-// app.use("/community_cards", routes.community_cards);
-// app.use("/player_hands", routes.player_hands);
 
 app.use("/lobby", authMiddleware, routes.lobby);
 app.use("/chat", authMiddleware, routes.chat);

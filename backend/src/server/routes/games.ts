@@ -207,6 +207,7 @@ router.get("/:gameId", async (request: Request, response: Response) => {
     const players = await Game.getPlayersInGame(parseInt(gameId));
     const password = await Game.getGamePassword(parseInt(gameId));
     const name = await Game.getGameName(parseInt(gameId));
+    const round = await Game.getGameRound(parseInt(gameId));
 
     // Check if the request wants JSON
     if (
@@ -218,6 +219,7 @@ router.get("/:gameId", async (request: Request, response: Response) => {
         player_count,
         players,
         name,
+        round,
         // @ts-ignore
         user: request.session.user,
       });
@@ -230,6 +232,7 @@ router.get("/:gameId", async (request: Request, response: Response) => {
       players,
       password,
       name,
+      round,
       // @ts-ignore
       user: request.session.user,
     });
@@ -269,6 +272,49 @@ router.post(
     } catch (error) {
       console.error("Error leaving game:", error);
       response.status(500).send("Failed to leave game");
+    }
+  }
+);
+
+router.post(
+  "/changeRound",
+  async (request: Request, response: Response): Promise<void> => {
+    //@ts-ignore
+    const gameIdRaw = request.body.gameId;
+    const actualRound = await Game.getGameRound(parseInt(gameIdRaw));
+
+    if (isNaN(gameIdRaw)) {
+      response.status(400).send("Invalid game ID");
+    }
+
+    let newRound;
+
+    switch (actualRound) {
+      case "pre-flop":
+        newRound = "flop";
+        break;
+      case "flop":
+        newRound = "turn";
+        break;
+      case "turn":
+        newRound = "river";
+        break;
+      case "river":
+        newRound = "showdown";
+        break;
+      default:
+        newRound = "pre-flop";
+    }
+
+    try {
+      await Game.changeRound(gameIdRaw, newRound);
+
+      // const io = request.app.get<Server>("io");
+      // io.emit(`game:${gameIdRaw}:change-round`, { });
+      response.status(200).json({ message: "Update successful: round" });
+    } catch (error) {
+      console.error("Error changing round:", error);
+      response.status(500).send("Failed to change round");
     }
   }
 );

@@ -168,6 +168,7 @@ const GameRoom: React.FC = () => {
               ...initialGameState,
               id: gameId || "",
               name: response.data.name || `Game ${gameId}`,
+              round: response.data.round,
               players: response.data.players.map((p: ServerPlayer) => ({
                 id: p.player_id,
                 email: p.email,

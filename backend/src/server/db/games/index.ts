@@ -102,6 +102,13 @@ const getGameName = async (gameId: number) => {
   return name;
 };
 
+const getGameRound = async (gameId: number) => {
+  const { round } = await db.one(`SELECT round FROM "games-test" WHERE id = $1`, [
+    gameId,
+  ]);
+  return round;
+};
+
 const isPlayerInGame = async (gameId: number, userId: number) => {
   const { count } = await db.one(
     `
@@ -120,6 +127,34 @@ const leaveGame = async (gameId: number, userId: number) => {
   );
 };
 
+const changeRound = async (gameId: number, newRound: string) => {
+  return db.none(
+    `UPDATE "games-test" SET round = $2 WHERE id = $1`,
+    [gameId, newRound]
+  );
+};
+
+const createCard = async (gameId: number, color: string, name: string) => {
+  return db.any(
+      `INSERT INTO cards(game_id, color, name) VALUES($1, $2, $3) RETURNING *`,
+      [gameId, color, name]
+  );
+};
+
+const createCommunityCards = async (gameId: number, cards: number[]) => {
+  return db.none(
+      `INSERT INTO community_cards(game_id, card1, card2, card3, card4, card5) VALUES($1, $2, $3, $4, $5, $6)`,
+      [gameId, ...cards]
+  );
+};
+
+const assignPlayerCards = async (playerId: number, card1Id: number, card2Id: number) => {
+  return db.none(
+    `UPDATE "game-players-test" SET card1 = $1, card2 = $2 WHERE player_id = $3`,
+    [card1Id, card2Id, playerId]
+  );
+};
+
 export default {
   create,
   join,
@@ -129,6 +164,11 @@ export default {
   getGamePassword,
   hasPassword,
   getGameName,
+  getGameRound,
   isPlayerInGame,
   leaveGame,
+  changeRound,
+  createCard,
+  createCommunityCards,
+  assignPlayerCards,
 };
