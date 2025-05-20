@@ -170,6 +170,19 @@ const assignPlayerCards = async (playerId: number, card1Id: number, card2Id: num
   );
 };
 
+const getCurrentTurn = async (gameId: number): Promise<string | null> => {
+  const result = await db.oneOrNone(`SELECT current_turn FROM "games-test" WHERE id = $1`, [gameId]);
+  return result?.current_turn ?? null;
+};
+
+const setCurrentTurn = async (gameId: number, playerId: string): Promise<void> => {
+  await db.none(
+    `UPDATE "games-test" SET current_turn = $2 WHERE id = $1`,
+    [gameId, playerId]
+  );
+};
+
+
 export default {
   create,
   join,
@@ -186,4 +199,6 @@ export default {
   createCard,
   createCommunityCards,
   assignPlayerCards,
+  getCurrentTurn,
+  setCurrentTurn,
 };

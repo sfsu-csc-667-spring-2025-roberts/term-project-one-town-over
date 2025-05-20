@@ -319,4 +319,97 @@ router.post(
   }
 );
 
+router.post(
+  "/changeTurn",
+  async (req: Request, res: Response): Promise<void> => {
+    const gameId = Number(req.body.gameId);
+    if (isNaN(gameId)) {
+      res.status(400).send("Invalid game ID");
+    }
+
+    try {
+      const players = await Game.getPlayersInGame(gameId);
+      const currentTurn = await Game.getCurrentTurn(gameId);
+
+      const currentIndex = players.findIndex(p => p.player_id === currentTurn);
+
+      let nextPlayer = null;
+      for (let i = 1; i <= players.length; i++) {
+        const nextIndex = (currentIndex + i) % players.length;
+        const candidate = players[nextIndex];
+        if (!candidate.hasFolded) {
+          nextPlayer = candidate;
+          break;
+        }
+      }
+
+      if (!nextPlayer) {
+        res.status(404).send("No active player found to assign turn to");
+      }
+
+      await Game.setCurrentTurn(gameId, nextPlayer.player_id);
+
+      const io = req.app.get<Server>("io");
+      io.emit(`game:${gameId}:change-turn`, { newPlayer: nextPlayer.player_id });
+
+      res.status(200).json({ message: "Turn updated", newPlayer: nextPlayer.player_id });
+    } catch (error) {
+      console.error("Error changing turn:", error);
+      res.status(500).send("Failed to change turn");
+    }
+  }
+);
+
+const changeTurn = async (
+  gameId: number,
+  currentPlayerId: string,
+  req: Request
+) => {
+
+  const io = req.app.get<Server>("io");
+
+  const players = await Game.getPlayersInGame(gameId);
+  if (!players || players.length === 0) throw new Error("No players found");
+
+  const currentIndex = players.findIndex(p => p.player_id === currentPlayerId);
+  const nextIndex = (currentIndex + 1) % players.length;
+  const nextPlayerId = players[nextIndex].player_id;
+
+  await Game.setCurrentTurn(gameId, nextPlayerId);
+
+  io.emit(`game:${gameId}:change-turn`, {
+    newPlayer: nextPlayerId,
+  });
+
+  return nextPlayerId;
+};
+
+router.post(
+  "/check",
+  async (req: Request, res: Response): Promise<void> => {
+    const gameId = Number(req.body.gameId);
+    const playerId = req.body.playerId;
+
+    if (isNaN(gameId) || !playerId) {
+      res.status(400).send("Invalid game ID or missing player ID");
+    }
+
+    try {
+      const io = req.app.get<Server>("io");
+
+      io.emit(`game:${gameId}:check`, {
+        playerId,
+        action: "check",
+      });
+
+      await changeTurn(gameId, playerId, req);
+
+      res.status(200).json({ message: "Player checked and turn updated" });
+    } catch (error) {
+      console.error("Error during check/turn change:", error);
+      res.status(500).send("Failed to check or change turn");
+    }
+  }
+);
+
 export default router;

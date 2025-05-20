@@ -127,6 +127,27 @@ const GameRoom: React.FC = () => {
       });
     });
 
+    socketRef.current.on(`game:${gameId}:check`, (data) => {
+      const { playerId } = data;
+    
+      setGame((prev) => {
+        const newState = { ...prev };
+
+        newState.players = newState.players.map((player) => {
+          if (player.id === playerId) {
+            return {
+              ...player,
+              lastAction: "check",
+            };
+          }
+          return player;
+        });
+
+        return newState;
+      });
+    });
+    
+
     // Listen for changing round
     socketRef.current.on(`game:${gameId}:change-round`, (data) => {
       setGame((prevState) => {
@@ -135,6 +156,32 @@ const GameRoom: React.FC = () => {
         return newState;
       });
     });
+
+    socketRef.current.on(`game:${gameId}:change-turn`, (data) => {
+      const newPlayerId = data.newPlayer;
+    
+      setGame(prev => {
+        const updatedPlayers = prev.players.map(player => ({
+          ...player,
+          isTurn: player.id === newPlayerId,
+        }));
+    
+        return {
+          ...prev,
+          currentTurn: newPlayerId,
+          players: updatedPlayers,
+        };
+      });
+
+      setCurrentPlayer(prev => {
+        if (!prev) return null;
+        if (prev.id === newPlayerId) {
+          return { ...prev, isTurn: true };
+        } else {
+          return { ...prev, isTurn: false };
+        }
+      });
+    });    
 
     // Listen for dealing
     socketRef.current.on(`game:${gameId}:deal`, (data) => {
@@ -158,8 +205,21 @@ const GameRoom: React.FC = () => {
     
         return newState;
       });
-    });
+  
+      setCurrentPlayer((prev) => {
+        if (!prev) return null;
     
+        const updatedPlayer = data.players.find((p: any) => p.id === prev.id);
+        if (updatedPlayer) {
+          return {
+            ...prev,
+            hand: updatedPlayer.actualCards,
+          };
+        }
+    
+        return prev;
+      });
+    });
 
     // Listen for player leave events
     socketRef.current.on(`game:${gameId}:player-left`, (data) => {
@@ -310,9 +370,14 @@ const GameRoom: React.FC = () => {
     // This would be implemented with actual game logic
   };
 
-  const handleCheck = () => {
+  const handleCheck = async () => {
     console.log("Checking");
-    // This would be implemented with actual game logic
+    try {
+      await axios.post("/games/check", { gameId: gameId, playerId: currentPlayer?.id });
+    } catch (error) {
+      console.error("Error checking:", error);
+      toast.error("Failed to check");
+    }
   };
 
   const handleFold = () => {
