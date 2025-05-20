@@ -412,4 +412,93 @@ router.post(
   }
 );
 
+router.post("/bet", async (req: Request, res: Response) => {
+  const { gameId, playerId, amount } = req.body;
+
+  if (!gameId || !playerId || isNaN(amount) || amount <= 0) {
+    return res.status(400).json({ error: "Invalid input for betting" });
+  }
+
+  try {
+    await Game.placeBet(playerId, amount);
+    await Game.updateGameBet(gameId, amount);
+
+    const io = req.app.get<Server>("io");
+
+    io.emit(`game:${gameId}:bet`, {
+      playerId,
+      amount,
+    });
+
+    await changeTurn(gameId, playerId, req);
+
+    res.status(200).json({ message: "Bet placed and turn updated" });
+  } catch (error) {
+    console.error("Error during bet:", error);
+    res.status(500).json({ error: "Failed to process bet" });
+  }
+});
+
+router.post("/raise", async (req: Request, res: Response) => {
+  const { gameId, playerId, amount } = req.body;
+
+  if (!gameId || !playerId || !amount || isNaN(amount)) {
+    return res.status(400).json({ error: "Invalid raise parameters." });
+  }
+
+  try {
+    await Game.placeBet(playerId, amount);
+    await Game.updateGameBet(gameId, amount);
+
+    const io = req.app.get<Server>("io");
+
+    io.emit(`game:${gameId}:raise`, {
+      playerId,
+      amount,
+    });
+
+    await changeTurn(gameId, playerId, req);
+
+    res.status(200).json({ message: "Player raised successfully" });
+  } catch (error) {
+    console.error("Raise error:", error);
+    res.status(500).json({ error: "Internal server error during raise" });
+  }
+});
+
+router.post("/call", async (req: Request, res: Response) => {
+  const { gameId, playerId } = req.body;
+
+  if (!gameId || !playerId) {
+    return res.status(400).json({ error: "Missing gameId or playerId" });
+  }
+
+  try {
+    const game = await Game.getGameById(gameId);
+    const player = await Game.getPlayerById(playerId);
+
+    const callAmount = game.current_bet - player.current_bet;
+
+    if (callAmount <= 0 || callAmount > player.chips) {
+      return res.status(400).json({ error: "Invalid call amount" });
+    }
+
+    await Game.placeBet(playerId, callAmount);
+
+    const io = req.app.get<Server>("io");
+
+    io.emit(`game:${gameId}:call`, {
+      playerId,
+      callAmount,
+    });
+
+    await changeTurn(gameId, playerId, req);
+
+    res.status(200).json({ message: "Player called successfully" });
+  } catch (error) {
+    console.error("Call error:", error);
+    res.status(500).json({ error: "Internal server error during call" });
+  }
+});
+
 export default router;

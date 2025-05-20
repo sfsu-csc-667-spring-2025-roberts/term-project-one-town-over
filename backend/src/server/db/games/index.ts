@@ -182,6 +182,34 @@ const setCurrentTurn = async (gameId: number, playerId: string): Promise<void> =
   );
 };
 
+const placeBet = async (playerId: string, amount: number) => {
+  return db.none(
+    `UPDATE "game-players-test" SET current_bet = current_bet + $1, chips = chips - $1 WHERE player_id = $2`,
+    [amount, playerId]
+  );
+};
+
+const updateGameBet = async (gameId: string, amount: number) => {
+  return db.none(
+    `UPDATE "games-test" SET current_bet = current_bet + $1 WHERE id = $2`,
+    [amount, gameId]
+  );
+};
+
+
+const getGameById = async (gameId: number) => {
+  return db.one(
+    `SELECT * FROM "games-test" WHERE id = $1`,
+    [gameId]
+  );
+}
+
+const getPlayerById = async (playerId: number) => {
+  return db.oneOrNone(
+    `SELECT * FROM "game-players-test" WHERE player_id = $1`,
+    [playerId]
+  );
+}
 
 export default {
   create,
@@ -201,4 +229,8 @@ export default {
   assignPlayerCards,
   getCurrentTurn,
   setCurrentTurn,
+  placeBet,
+  getGameById,
+  getPlayerById,
+  updateGameBet
 };

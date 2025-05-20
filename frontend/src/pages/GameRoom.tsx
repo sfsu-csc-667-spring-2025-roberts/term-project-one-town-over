@@ -146,6 +146,102 @@ const GameRoom: React.FC = () => {
         return newState;
       });
     });
+
+    socketRef.current.on(`game:${gameId}:bet`, ({ playerId, amount }) => {
+      setGame((prevGame) => {
+        const updatedGame = { ...prevGame };
+    
+        updatedGame.players = updatedGame.players.map((p) => {
+          if (p.id === playerId) {
+            return {
+              ...p,
+              chips: p.chips - amount,
+              currentBet: p.currentBet + amount,
+            };
+          }
+          return p;
+        });
+
+        updatedGame.pot += amount;
+
+        if (amount > updatedGame.currentBet) {
+          updatedGame.currentBet = amount;
+        }
+    
+        return updatedGame;
+      });
+    
+      setCurrentPlayer((prev) => {
+        if (!prev || prev.id !== playerId) return prev;
+    
+        return {
+          ...prev,
+          chips: prev.chips - amount,
+          currentBet: prev.currentBet + amount,
+        };
+      });
+    });  
+    
+    socketRef.current.on(`game:${gameId}:raise`, ({ playerId, amount }) => {
+      setGame((prevGame) => {
+        const updatedGame = { ...prevGame };
+
+        updatedGame.players = updatedGame.players.map((p) => {
+          if (p.id === playerId) {
+            return {
+              ...p,
+              chips: p.chips - amount,
+              currentBet: p.currentBet + amount,
+            };
+          }
+          return p;
+        });
+
+        updatedGame.pot += amount;
+        updatedGame.currentBet += amount;
+    
+        return updatedGame;
+      });
+
+      setCurrentPlayer((prev) => {
+        if (!prev || prev.id !== playerId) return prev;
+        return {
+          ...prev,
+          chips: prev.chips - amount,
+          currentBet: prev.currentBet + amount,
+        };
+      });
+    });
+
+    socketRef.current.on(`game:${gameId}:call`, ({ playerId, callAmount }) => {
+      setGame((prevGame) => {
+        const updatedGame = { ...prevGame };
+    
+        updatedGame.players = updatedGame.players.map((p) => {
+          if (p.id === playerId) {
+            return {
+              ...p,
+              chips: p.chips - callAmount,
+              currentBet: p.currentBet + callAmount,
+            };
+          }
+          return p;
+        });
+
+        updatedGame.pot += callAmount;
+    
+        return updatedGame;
+      });
+
+      setCurrentPlayer((prev) => {
+        if (!prev || prev.id !== playerId) return prev;
+        return {
+          ...prev,
+          chips: prev.chips - callAmount,
+          currentBet: prev.currentBet + callAmount,
+        };
+      });
+    });
     
 
     // Listen for changing round
@@ -360,14 +456,29 @@ const GameRoom: React.FC = () => {
   }, [gameId, user?.id, user?.email]);
 
   // Game actions
-  const handleBet = (amount: number) => {
-    console.log("Betting", amount);
-    // This would be implemented with actual game logic
-  };
+  const handleBet = async (amount: number) => {
+    try {
+      await axios.post("/games/bet", {
+        gameId: game.id,
+        playerId: currentPlayer?.id,
+        amount,
+      });
+      console.log("Bet sent:", amount);
+    } catch (err) {
+      console.error("Failed to bet:", err);
+    }
+  };  
 
-  const handleCall = () => {
-    console.log("Calling");
-    // This would be implemented with actual game logic
+  const handleCall = async () => {
+    try {
+      await axios.post("/games/call", {
+        gameId: game.id,
+        playerId: currentPlayer?.id,
+      });
+      console.log("Call sent");
+    } catch (err) {
+      console.error("Failed to call:", err);
+    }
   };
 
   const handleCheck = async () => {
@@ -385,10 +496,18 @@ const GameRoom: React.FC = () => {
     // This would be implemented with actual game logic
   };
 
-  const handleRaise = (amount: number) => {
-    console.log("Raising", amount);
-    // This would be implemented with actual game logic
-  };
+  const handleRaise = async (amount: number) => {
+    try {
+      await axios.post("/games/raise", {
+        gameId: game.id,
+        playerId: currentPlayer?.id,
+        amount,
+      });
+      console.log("Raise sent:", amount);
+    } catch (err) {
+      console.error("Failed to raise:", err);
+    }
+  };  
 
   const handleLeaveGame = async () => {
     try {
