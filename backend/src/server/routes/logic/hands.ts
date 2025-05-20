@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import * as PokerEvaluator from 'poker-evaluator';
 import { Game } from '../../db/index';
+import { Server } from "socket.io";
 
 const router = express.Router();
 
@@ -161,6 +162,8 @@ router.post("/deal", async (req: Request, res: Response) => {
 
     await Game.createCommunityCards(gameId, communityCardIds);
 
+    const io = req.app.get<Server>("io");
+    io.emit(`game:${gameId}:deal`, {players, communityCards});
     res.json({
       players,
       communityCards: hideCards ? ["hidden", "hidden", "hidden", "hidden", "hidden"] : communityCards,

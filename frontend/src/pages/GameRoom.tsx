@@ -127,6 +127,40 @@ const GameRoom: React.FC = () => {
       });
     });
 
+    // Listen for changing round
+    socketRef.current.on(`game:${gameId}:change-round`, (data) => {
+      setGame((prevState) => {
+        const newState = { ...prevState };
+        newState.round = data.newRound;
+        return newState;
+      });
+    });
+
+    // Listen for dealing
+    socketRef.current.on(`game:${gameId}:deal`, (data) => {
+      setGame((prevState) => {
+        const newState = { ...prevState };
+    
+        // Update community cards
+        newState.communityCards = data.communityCards;
+    
+        // Update player hands
+        newState.players = newState.players.map((player) => {
+          const updatedPlayer = data.players.find((p: any) => p.id === player.id);
+          if (updatedPlayer) {
+            return {
+              ...player,
+              hand: updatedPlayer.actualCards,
+            };
+          }
+          return player;
+        });
+    
+        return newState;
+      });
+    });
+    
+
     // Listen for player leave events
     socketRef.current.on(`game:${gameId}:player-left`, (data) => {
       toast.info(`A player has left the game`);

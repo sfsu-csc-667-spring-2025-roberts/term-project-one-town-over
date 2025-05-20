@@ -309,8 +309,8 @@ router.post(
     try {
       await Game.changeRound(gameIdRaw, newRound);
 
-      // const io = request.app.get<Server>("io");
-      // io.emit(`game:${gameIdRaw}:change-round`, { });
+      const io = request.app.get<Server>("io");
+      io.emit(`game:${gameIdRaw}:change-round`, {newRound: newRound});
       response.status(200).json({ message: "Update successful: round" });
     } catch (error) {
       console.error("Error changing round:", error);

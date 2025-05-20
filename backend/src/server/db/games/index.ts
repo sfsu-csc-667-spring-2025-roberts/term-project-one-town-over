@@ -142,10 +142,25 @@ const createCard = async (gameId: number, color: string, name: string) => {
 };
 
 const createCommunityCards = async (gameId: number, cards: number[]) => {
-  return db.none(
-      `INSERT INTO community_cards(game_id, card1, card2, card3, card4, card5) VALUES($1, $2, $3, $4, $5, $6)`,
-      [gameId, ...cards]
+  const existing = await db.oneOrNone(
+    `SELECT community_id FROM community_cards WHERE game_id = $1`,
+    [gameId]
   );
+
+  if (existing) {
+    return db.none(
+      `UPDATE community_cards 
+       SET card1 = $2, card2 = $3, card3 = $4, card4 = $5, card5 = $6
+       WHERE game_id = $1`,
+      [gameId, ...cards]
+    );
+  } else {
+    return db.none(
+      `INSERT INTO community_cards (game_id, card1, card2, card3, card4, card5)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [gameId, ...cards]
+    );
+  }
 };
 
 const assignPlayerCards = async (playerId: number, card1Id: number, card2Id: number) => {
