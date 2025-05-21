@@ -3,6 +3,7 @@ import { Request, Response, Router } from "express";
 import { Game } from "../db/index";
 import { Server } from "socket.io";
 import db from "../db/connection";
+import { createDeck, shuffle } from "./logic/hands";
 
 interface GameRecord {
   id: number;
@@ -209,6 +210,8 @@ router.get("/:gameId", async (request: Request, response: Response) => {
     const name = await Game.getGameName(parseInt(gameId));
     const round = await Game.getGameRound(parseInt(gameId));
 
+    const game = await Game.getGameById(parseInt(gameId));
+
     // Check if the request wants JSON
     if (
       request.headers.accept &&
@@ -222,6 +225,7 @@ router.get("/:gameId", async (request: Request, response: Response) => {
         round,
         // @ts-ignore
         user: request.session.user,
+        game
       });
     }
 
@@ -276,89 +280,51 @@ router.post(
   }
 );
 
-router.post(
-  "/changeRound",
-  async (request: Request, response: Response): Promise<void> => {
-    //@ts-ignore
-    const gameIdRaw = request.body.gameId;
-    const actualRound = await Game.getGameRound(parseInt(gameIdRaw));
+const changeRound = async (gameId: number, req: Request): Promise<string> => {
+  const actualRound = await Game.getGameRound(gameId);
+  let newRound: string;
 
-    if (isNaN(gameIdRaw)) {
-      response.status(400).send("Invalid game ID");
-    }
-
-    let newRound;
-
-    switch (actualRound) {
-      case "pre-flop":
-        newRound = "flop";
-        break;
-      case "flop":
-        newRound = "turn";
-        break;
-      case "turn":
-        newRound = "river";
-        break;
-      case "river":
-        newRound = "showdown";
-        break;
-      default:
-        newRound = "pre-flop";
-    }
-
-    try {
-      await Game.changeRound(gameIdRaw, newRound);
-
-      const io = request.app.get<Server>("io");
-      io.emit(`game:${gameIdRaw}:change-round`, {newRound: newRound});
-      response.status(200).json({ message: "Update successful: round" });
-    } catch (error) {
-      console.error("Error changing round:", error);
-      response.status(500).send("Failed to change round");
-    }
+  switch (actualRound) {
+    case "pre-flop":
+      newRound = "flop";
+      break;
+    case "flop":
+      newRound = "turn";
+      break;
+    case "turn":
+      newRound = "river";
+      break;
+    case "river":
+      newRound = "showdown";
+      break;
+    default:
+      newRound = "pre-flop";
   }
-);
 
-router.post(
-  "/changeTurn",
-  async (req: Request, res: Response): Promise<void> => {
-    const gameId = Number(req.body.gameId);
-    if (isNaN(gameId)) {
-      res.status(400).send("Invalid game ID");
-    }
+  await Game.changeRound(gameId, newRound);
+  await Game.resetPlayerActions(gameId);
 
-    try {
-      const players = await Game.getPlayersInGame(gameId);
-      const currentTurn = await Game.getCurrentTurn(gameId);
+  const io = req.app.get<Server>("io");
+  io.emit(`game:${gameId}:change-round`, { newRound });
 
-      const currentIndex = players.findIndex(p => p.player_id === currentTurn);
+  return newRound;
+};
 
-      let nextPlayer = null;
-      for (let i = 1; i <= players.length; i++) {
-        const nextIndex = (currentIndex + i) % players.length;
-        const candidate = players[nextIndex];
-        if (!candidate.hasFolded) {
-          nextPlayer = candidate;
-          break;
-        }
-      }
+const maybeChangeRound = async (gameId: number, req: Request): Promise<void> => {
+  const players = await Game.getPlayersInGame(gameId);
 
-      if (!nextPlayer) {
-        res.status(404).send("No active player found to assign turn to");
-      }
+  const activePlayers = players.filter((p: any) => !p.has_folded);
+  const allActed = activePlayers.every((p: any) => p.has_acted);
 
-      await Game.setCurrentTurn(gameId, nextPlayer.player_id);
+  if (allActed) {
+    await changeRound(gameId, req);
 
-      const io = req.app.get<Server>("io");
-      io.emit(`game:${gameId}:change-turn`, { newPlayer: nextPlayer.player_id });
-
-      res.status(200).json({ message: "Turn updated", newPlayer: nextPlayer.player_id });
-    } catch (error) {
-      console.error("Error changing turn:", error);
-      res.status(500).send("Failed to change turn");
-    }
+    const firstActivePlayer = activePlayers[0];
+    await Game.setCurrentTurn(gameId, firstActivePlayer.player_id);
+    const io = req.app.get<Server>("io");
+    io.emit(`game:${gameId}:change-turn`, { newPlayer: firstActivePlayer.player_id });
   }
-);
+};
 
 const changeTurn = async (
   gameId: number,
@@ -384,6 +350,63 @@ const changeTurn = async (
   return nextPlayerId;
 };
 
+const dealCards = async (
+  gameId: number,
+  hideCards: boolean,
+  req: Request
+) => {
+  const deck = shuffle(createDeck());
+
+  try {
+    const playersFromDb = await Game.getPlayersInGame(gameId);
+
+    const players: any[] = [];
+
+    for (const player of playersFromDb) {
+      const holeCards = [deck.pop()!, deck.pop()!];
+
+      const insertedCard1 = await Game.createCard(gameId, holeCards[0].suit, holeCards[0].value);
+      const insertedCard2 = await Game.createCard(gameId, holeCards[1].suit, holeCards[1].value);
+
+      const card1Id = insertedCard1[0].card_id;
+      const card2Id = insertedCard2[0].card_id;
+
+      await Game.assignPlayerCards(player.player_id, card1Id, card2Id);
+
+      players.push({
+        id: player.player_id,
+        email: player.email,
+        holeCards: hideCards ? ["hidden", "hidden"] : holeCards,
+        actualCards: hideCards ? holeCards : undefined,
+      });
+    }
+
+    const communityCards = [
+      deck.pop()!,
+      deck.pop()!,
+      deck.pop()!,
+      deck.pop()!,
+      deck.pop()!,
+    ];
+
+    const communityCardIds: number[] = [];
+
+    for (const card of communityCards) {
+      const insertedCard = await Game.createCard(gameId, card.suit, card.value);
+      communityCardIds.push(insertedCard[0].card_id);
+    }
+
+    await Game.createCommunityCards(gameId, communityCardIds);
+
+    console.log("Players: ", players);
+
+    const io = req.app.get<Server>("io");
+    io.emit(`game:${gameId}:deal`, {players, communityCards});
+  } catch (error) {
+    console.error("Deal error:", error);
+  }
+};
+
 router.post(
   "/check",
   async (req: Request, res: Response): Promise<void> => {
@@ -402,7 +425,9 @@ router.post(
         action: "check",
       });
 
+      await Game.setHasActed(playerId);
       await changeTurn(gameId, playerId, req);
+      await maybeChangeRound(gameId, req);
 
       res.status(200).json({ message: "Player checked and turn updated" });
     } catch (error) {
@@ -422,6 +447,8 @@ router.post("/bet", async (req: Request, res: Response) => {
   try {
     await Game.placeBet(playerId, amount);
     await Game.updateGameBet(gameId, amount);
+    await Game.setHasActed(playerId);
+    await maybeChangeRound(gameId, req);
 
     const io = req.app.get<Server>("io");
 
@@ -449,6 +476,8 @@ router.post("/raise", async (req: Request, res: Response) => {
   try {
     await Game.placeBet(playerId, amount);
     await Game.updateGameBet(gameId, amount);
+    await Game.setHasActed(playerId);
+    await maybeChangeRound(gameId, req);
 
     const io = req.app.get<Server>("io");
 
@@ -484,6 +513,8 @@ router.post("/call", async (req: Request, res: Response) => {
     }
 
     await Game.placeBet(playerId, callAmount);
+    await Game.setHasActed(playerId);
+    await maybeChangeRound(gameId, req);
 
     const io = req.app.get<Server>("io");
 
@@ -498,6 +529,39 @@ router.post("/call", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Call error:", error);
     res.status(500).json({ error: "Internal server error during call" });
+  }
+});
+
+router.post("/start", async (req: Request, res: Response) => {
+  const { gameId } = req.body;
+
+  if (!gameId) {
+    return res.status(400).json({ error: "Missing gameId" });
+  }
+
+  try {
+    await Game.startGame(gameId);
+
+    await dealCards(gameId, true, req);
+
+    const players = await Game.getPlayersInGame(gameId);
+
+    if (!players || players.length === 0) {
+      return res.status(400).json({ error: "No players in the game" });
+    }
+
+    const firstPlayerId = players[0].player_id;
+
+    await Game.setCurrentTurn(gameId, firstPlayerId);
+
+    const io = req.app.get<Server>("io");
+    io.emit(`game:${gameId}:start`, { gameId });
+    io.emit(`game:${gameId}:change-turn`, { newPlayer: firstPlayerId });
+
+    res.status(200).json({ message: "Game started successfully" });
+  } catch (error) {
+    console.error("Start error:", error);
+    res.status(500).json({ error: "Internal server error during start" });
   }
 });
 

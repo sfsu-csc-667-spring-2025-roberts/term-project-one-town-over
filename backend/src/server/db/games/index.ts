@@ -70,7 +70,7 @@ const playerCount = async (gameId: number) => {
 const getPlayersInGame = async (gameId: number) => {
   return db.any(
     `
-        SELECT player_id, email 
+        SELECT * 
         FROM "game-players-test" o
         JOIN "usertest" u ON o.player_id = u.id
         WHERE o.game_id = $1
@@ -211,6 +211,33 @@ const getPlayerById = async (playerId: number) => {
   );
 }
 
+const startGame = async (gameId: number) => {
+  return db.none(
+    `UPDATE "games-test" SET status = 'playing' WHERE id = $1`,
+    [gameId]
+  );
+}
+
+export const setHasActed = async (playerId: string, hasActed: boolean = true): Promise<void> => {
+  await db.query(
+    `UPDATE "game-players-test" SET has_acted = $1 WHERE player_id = $2`,
+    [hasActed, playerId]
+  );
+};
+
+const resetPlayerActions = async (gameId: number): Promise<void> => {
+  await db.query(
+    `
+    UPDATE "game-players-test"
+    SET 
+      current_bet = 0,
+      has_acted = FALSE
+    WHERE game_id = $1
+    `,
+    [gameId]
+  );
+};
+
 export default {
   create,
   join,
@@ -232,5 +259,8 @@ export default {
   placeBet,
   getGameById,
   getPlayerById,
-  updateGameBet
+  updateGameBet,
+  startGame,
+  setHasActed,
+  resetPlayerActions,
 };

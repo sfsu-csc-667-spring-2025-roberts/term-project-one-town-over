@@ -127,6 +127,14 @@ const GameRoom: React.FC = () => {
       });
     });
 
+    socketRef.current.on(`game:${gameId}:start`, () => {
+      setGame((prev) => ({
+        ...prev,
+        status: "playing",
+      }));
+      console.log("Game started!");
+    });
+
     socketRef.current.on(`game:${gameId}:check`, (data) => {
       const { playerId } = data;
     
@@ -279,15 +287,12 @@ const GameRoom: React.FC = () => {
       });
     });    
 
-    // Listen for dealing
     socketRef.current.on(`game:${gameId}:deal`, (data) => {
       setGame((prevState) => {
         const newState = { ...prevState };
-    
-        // Update community cards
+
         newState.communityCards = data.communityCards;
-    
-        // Update player hands
+
         newState.players = newState.players.map((player) => {
           const updatedPlayer = data.players.find((p: any) => p.id === player.id);
           if (updatedPlayer) {
@@ -352,6 +357,8 @@ const GameRoom: React.FC = () => {
             headers: { Accept: "application/json" },
           });
 
+          console.log("Data: ", response);
+
           if (response.data && response.data.players) {
             // Create a game state with the available data
             const gameStateFromServer = {
@@ -370,6 +377,11 @@ const GameRoom: React.FC = () => {
                 currentBet: 0,
                 position: 0, // Will be adjusted
               })),
+              currentBet: response.data.game.current_bet,
+              smallBlind: response.data.game.small_blind,
+              bigBlind: response.data.game.big_blind,
+              pot: response.data.game.pot,
+              currentTurn: response.data.game.current_turn
             };
 
             // Adjust player positions
@@ -507,7 +519,18 @@ const GameRoom: React.FC = () => {
     } catch (err) {
       console.error("Failed to raise:", err);
     }
-  };  
+  }; 
+  
+  const handleStartGame = async () => {
+    try {
+      await axios.post("/games/start", {
+        gameId: game.id
+      });
+      console.log("Game started");
+    } catch (err) {
+      console.error("Failed to start:", err);
+    }
+  };
 
   const handleLeaveGame = async () => {
     try {
@@ -550,6 +573,9 @@ const GameRoom: React.FC = () => {
     <div className="container px-4 py-4 mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">{game.name}</h1>
+        <button onClick={handleStartGame} className={game.status === "playing" ? "btn" : "btn btn-secondary"} disabled={game.status === "playing" && true}>
+          Start Game
+        </button>
         <button onClick={handleLeaveGame} className="btn btn-secondary">
           Leave Game
         </button>
