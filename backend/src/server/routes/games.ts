@@ -610,9 +610,6 @@ router.post("/fold", async (req: Request, res: Response) => {
       const pot = await Game.getGamePot(gameId);
 
       await Game.addChipsToPlayer(winner.player_id, pot, gameId);
-      await Game.updateGameShowdown(gameId);
-      await Game.changeRound(gameId, "pre-flop");
-      await Game.resetPlayerActions(gameId);
 
       const updatedWinner = await Game.getPlayerById(winner.player_id, gameId);
 
@@ -624,11 +621,7 @@ router.post("/fold", async (req: Request, res: Response) => {
           },
         ],
       });
-
-      io.emit(`game:${gameId}:change-round`, {
-        newRound: "pre-flop",
-        communityCards: [],
-      });
+      await resetGame(gameId, req);
     } else {
       await changeTurn(gameId, playerId, req);
       await maybeChangeRound(gameId, req);
@@ -756,6 +749,32 @@ export const evaluateAndDistributeChips = async (gameId: number, req: Request) =
   });
 };
 
+export const resetGame = async (gameId: number, req: Request) => {
+  const io = req.app.get<Server>("io");
+
+  const players = await Game.getPlayersInGame(gameId);
+
+  for (const player of players) {
+    await Game.setPlayerFolded(player.player_id, gameId, false);
+    await Game.setPlayerCurrentBet(player.player_id, 0, gameId);
+  }
+
+  await Game.setGamePot(gameId, 0);
+  await Game.setGameCurrentBet(gameId, 0);
+
+  await Game.changeRound(gameId, "pre-flop");
+  await Game.resetPlayerActions(gameId);
+
+  io.emit(`game:${gameId}:reset`, {
+    pot: 0,
+    currentBet: 0,
+    players,
+    communityCards: [],
+  });
+
+  await dealCards(gameId, true, req);
+};
+
 router.post("/reset", async (req: Request, res: Response) => {
   const { gameId } = req.body;
 
@@ -766,30 +785,7 @@ router.post("/reset", async (req: Request, res: Response) => {
 
   try {
     await evaluateAndDistributeChips(gameId, req);
-
-    const players = await Game.getPlayersInGame(gameId);
-
-    for (const player of players) {
-      await Game.setPlayerFolded(player.player_id, gameId, false);
-      await Game.setPlayerCurrentBet(player.player_id, 0, gameId);
-    }
-
-    await Game.setGamePot(gameId, 0);
-    await Game.setGameCurrentBet(gameId, 0);
-
-    await Game.changeRound(gameId, "pre-flop");
-    await Game.resetPlayerActions(gameId);
-
-    const io = req.app.get<Server>("io");
-    io.emit(`game:${gameId}:reset`, {
-      pot: 0,
-      currentBet: 0,
-      players,
-      communityCards: [],
-    });
-
-    await dealCards(gameId, true, req);
-
+    await resetGame(gameId, req);
     res.status(200).json({ message: "Game evaluated, reset, and cards dealt successfully" });
   } catch (error) {
     console.error("Reset error:", error);
