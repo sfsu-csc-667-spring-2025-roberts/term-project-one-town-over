@@ -371,15 +371,26 @@ const changeTurn = async (
   currentPlayerId: string,
   req: Request
 ) => {
-
   const io = req.app.get<Server>("io");
 
   const players = await Game.getPlayersInGame(gameId);
   if (!players || players.length === 0) throw new Error("No players found");
 
-  const currentIndex = players.findIndex(p => p.player_id === currentPlayerId);
-  const nextIndex = (currentIndex + 1) % players.length;
-  const nextPlayerId = players[nextIndex].player_id;
+  const activePlayers = players.filter(
+    (p) => !p.is_eliminated
+  );
+
+  if (activePlayers.length === 0) {
+    throw new Error("No active players left to take the turn");
+  }
+
+  const currentIndex = activePlayers.findIndex(p => p.player_id === currentPlayerId);
+
+  const nextIndex = currentIndex === -1
+    ? 0
+    : (currentIndex + 1) % activePlayers.length;
+
+  const nextPlayerId = activePlayers[nextIndex].player_id;
 
   await Game.setCurrentTurn(gameId, nextPlayerId);
 
@@ -775,6 +786,33 @@ export const resetGame = async (gameId: number, req: Request) => {
   await dealCards(gameId, true, req);
 };
 
+export const eliminatePlayersWithNoChips = async (gameId: number, req: Request) => {
+  const io = req.app.get<Server>("io");
+  const players = await Game.getPlayersInGame(gameId);
+
+  for (const player of players) {
+    if (player.chips <= 0 && !player.is_eliminated) {
+      await Game.eliminatePlayer(player.player_id, gameId);
+      io.emit(`game:${gameId}:eliminated`, { playerId: player.player_id });
+    }
+  }
+
+  const updatedPlayers = await Game.getPlayersInGame(gameId);
+  const remainingPlayers = updatedPlayers.filter(
+    (p) => !p.is_eliminated && p.chips > 0
+  );
+
+  if (remainingPlayers.length === 1) {
+    const winner = remainingPlayers[0];
+
+    io.emit(`game:${gameId}:only-one-player-left`, {
+      winnerId: winner.player_id,
+    });
+  } else {
+    await resetGame(gameId, req);
+  }
+};
+
 router.post("/reset", async (req: Request, res: Response) => {
   const { gameId } = req.body;
 
@@ -785,7 +823,7 @@ router.post("/reset", async (req: Request, res: Response) => {
 
   try {
     await evaluateAndDistributeChips(gameId, req);
-    await resetGame(gameId, req);
+    await eliminatePlayersWithNoChips(gameId, req);
     res.status(200).json({ message: "Game evaluated, reset, and cards dealt successfully" });
   } catch (error) {
     console.error("Reset error:", error);

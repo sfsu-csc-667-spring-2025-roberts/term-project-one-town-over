@@ -324,6 +324,13 @@ const setPlayerCurrentBet = async (playerId: number, gameId: number, bet: number
   );
 };
 
+const eliminatePlayer = async (playerId: number, gameId: number) => {
+  await db.none(
+    `UPDATE "game-players-test" SET has_loose = true WHERE player_id = $1 AND game_id = $2`,
+    [playerId, gameId]
+  );
+};
+
 export default {
   create,
   join,
@@ -358,5 +365,6 @@ export default {
   getActivePlayersInGame,
   setGamePot,
   setGameCurrentBet,
-  setPlayerCurrentBet
+  setPlayerCurrentBet,
+  eliminatePlayer
 };

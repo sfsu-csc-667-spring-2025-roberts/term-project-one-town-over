@@ -29,6 +29,7 @@ interface Player {
   hasFolded: boolean;
   currentBet: number;
   position: number;
+  hasLoose: boolean;
 }
 
 interface GameState {
@@ -126,6 +127,7 @@ const GameRoom: React.FC = () => {
             hasFolded: false,
             currentBet: 0,
             position: newState.players.length,
+            hasLoose: false,
           });
         }
 
@@ -140,6 +142,36 @@ const GameRoom: React.FC = () => {
       }));
       console.log("Game started!");
     });
+
+    socketRef.current.on(`game:${gameId}:eliminated`, ({ playerId }) => {
+      setGame((prev) => {
+        const newState = { ...prev };
+        newState.players = newState.players.map((p) =>
+          p.id === playerId ? { ...p, hasLoose: true } : p
+        );
+        return newState;
+      });
+      setCurrentPlayer((prev) => {
+        if (!prev || prev.id !== playerId) return prev;
+    
+        return {
+          ...prev,
+          hasLoose: true,
+        };
+      });
+    });
+
+    socketRef.current.on(`game:${gameId}:only-one-player-left`, (data: { winnerId: string }) => {
+        setGame((prevGame) => {
+          if (!prevGame) return prevGame;
+  
+          return {
+            ...prevGame,
+            winner: data.winnerId,
+          };
+        });
+      }
+    );
 
     socketRef.current.on(`game:${gameId}:check`, (data) => {
       const { playerId } = data;
@@ -526,6 +558,7 @@ const GameRoom: React.FC = () => {
                 isDealer: true,
                 isTurn: true,
                 hasFolded: false,
+                hasLoose: false,
                 currentBet: 0,
                 position: 0,
                 hand: [
@@ -556,6 +589,7 @@ const GameRoom: React.FC = () => {
             isDealer: true,
             isTurn: true,
             hasFolded: false,
+            hasLoose: false,
             currentBet: 0,
             position: 0,
             hand: [
@@ -790,6 +824,7 @@ const GameRoom: React.FC = () => {
                       playerChips={currentPlayer.chips}
                       minRaise={game.bigBlind}
                       round={game.round}
+                      hasLoose={currentPlayer.hasLoose}
                     />
                   </div>
                 </div>

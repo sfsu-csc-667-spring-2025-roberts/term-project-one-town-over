@@ -17,6 +17,7 @@ interface Player {
   hasFolded: boolean;
   currentBet: number;
   position: number;
+  hasLoose: boolean;
 }
 
 interface PokerTableProps {
@@ -200,6 +201,12 @@ const PokerTable: React.FC<PokerTableProps> = ({
             {player.hasFolded && (
               <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/30">
                 <span className="font-bold text-white">FOLD</span>
+              </div>
+            )}
+
+            {player.hasLoose && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/30">
+                <span className="font-bold text-white">LOST</span>
               </div>
             )}
           </div>
