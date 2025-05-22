@@ -257,15 +257,22 @@ const GameRoom: React.FC = () => {
       });
     });
 
+    socketRef.current.on(`game:${gameId}:fold`, ({ playerId }) => {
+      setGame((prevGame) => {
+        const updatedGame = { ...prevGame };
+        updatedGame.players = updatedGame.players.map((p) =>
+          p.id === playerId ? { ...p, hasFolded: true } : p
+        );
+        return updatedGame;
+      });
+    });
+
     socketRef.current.on(
       `game:${gameId}:showdown`,
       (data: { pot: number; currentBet: number; winnersId: WinnerData[] }) => {
         setGame((prevState) => {
           const newState = { ...prevState };
-    
-          newState.pot = data.pot;
-          newState.currentBet = data.currentBet;
-    
+
           newState.players = newState.players.map((p) => {
             const winner = data.winnersId.find((w: WinnerData) => w.id === p.id);
     
@@ -288,6 +295,57 @@ const GameRoom: React.FC = () => {
             ...prev,
             chips: winner ? winner.chips : prev.chips,
             currentBet: 0,
+          };
+        });
+      }
+    );
+
+    socketRef.current.on(
+      `game:${gameId}:reset`,
+      (data: {
+        pot: number;
+        currentBet: number;
+        communityCards: Card[];
+        players: {
+          id: string;
+          chips: number;
+          hand: Card[];
+        }[];
+      }) => {
+        setGame((prevState) => {
+          const newState = { ...prevState };
+    
+          newState.pot = data.pot;
+          newState.currentBet = data.currentBet;
+          newState.communityCards = data.communityCards;
+          newState.round = "pre-flop";
+    
+          newState.players = newState.players.map((p) => {
+            const updated = data.players.find((dp) => dp.id === p.id);
+            if (updated) {
+              return {
+                ...p,
+                chips: updated.chips,
+                currentBet: 0,
+                hasFolded: false,
+                hand: updated.hand,
+              };
+            }
+            return p;
+          });
+    
+          return newState;
+        });
+    
+        setCurrentPlayer((prev) => {
+          if (!prev) return null;
+          const updated = data.players.find((p) => p.id === prev.id);
+          if (!updated) return prev;
+          return {
+            ...prev,
+            chips: updated.chips,
+            currentBet: 0,
+            hand: updated.hand,
           };
         });
       }
@@ -553,9 +611,17 @@ const GameRoom: React.FC = () => {
     }
   };
 
-  const handleFold = () => {
-    console.log("Folding");
-    // This would be implemented with actual game logic
+  const handleFold = async () => {
+    try {
+      const response = await axios.post("/games/fold", {
+        gameId: game.id,
+        playerId: currentPlayer?.id,
+      });
+  
+      console.log("Fold successful:", response.data);
+    } catch (error) {
+      console.error("Error folding:", error);
+    }
   };
 
   const handleRaise = async (amount: number) => {
@@ -579,6 +645,17 @@ const GameRoom: React.FC = () => {
       console.log("Game started");
     } catch (err) {
       console.error("Failed to start:", err);
+    }
+  };
+
+  const handleResetGame = async () => {
+    try {
+      await axios.post("/games/reset", {
+        gameId: game.id
+      });
+      console.log("Game reset");
+    } catch (err) {
+      console.error("Failed to reset:", err);
     }
   };
 
@@ -625,6 +702,9 @@ const GameRoom: React.FC = () => {
         <h1 className="text-2xl font-bold">{game.name}</h1>
         <button onClick={handleStartGame} className={game.status === "playing" ? "btn" : "btn btn-secondary"} disabled={game.status === "playing" && true}>
           Start Game
+        </button>
+        <button onClick={handleResetGame} className={game.round !== "showdown" ? "btn" : "btn btn-secondary"} disabled={game.round !== "showdown" && true}>
+          Continue
         </button>
         <button onClick={handleLeaveGame} className="btn btn-secondary">
           Leave Game
@@ -706,6 +786,7 @@ const GameRoom: React.FC = () => {
                       playerBet={currentPlayer.currentBet}
                       playerChips={currentPlayer.chips}
                       minRaise={game.bigBlind}
+                      round={game.round}
                     />
                   </div>
                 </div>

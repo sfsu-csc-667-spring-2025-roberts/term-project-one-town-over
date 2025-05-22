@@ -11,6 +11,7 @@ interface BettingControlsProps {
   playerBet: number;
   playerChips: number;
   minRaise: number;
+  round: string;
 }
 
 const BettingControls: React.FC<BettingControlsProps> = ({
@@ -24,6 +25,7 @@ const BettingControls: React.FC<BettingControlsProps> = ({
   playerBet,
   playerChips,
   minRaise,
+  round,
 }) => {
   const [raiseAmount, setRaiseAmount] = useState(currentBet + minRaise);
   const [showRaiseControls, setShowRaiseControls] = useState(false);
@@ -46,6 +48,16 @@ const BettingControls: React.FC<BettingControlsProps> = ({
     onRaise(raiseAmount);
     setShowRaiseControls(false);
   };
+
+  if (round === "showdown") {
+    return (
+      <div className="text-center p-4">
+        <div className="text-gray-500 font-medium">
+          Waiting for next game...
+        </div>
+      </div>
+    );
+  }
 
   if (!isPlayerTurn) {
     return (

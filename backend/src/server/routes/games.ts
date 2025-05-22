@@ -304,7 +304,6 @@ const changeRound = async (gameId: number, req: Request): Promise<void> => {
 
   const io = req.app.get<Server>("io");
 
-  // Always load and prepare community cards
   const communityResult = await db.one(
     `SELECT * FROM community_cards WHERE game_id = $1`,
     [gameId]
@@ -329,7 +328,6 @@ const changeRound = async (gameId: number, req: Request): Promise<void> => {
     })
   );
 
-  // Determine how many cards should be revealed in the current round
   const revealedCountByRound: Record<string, number> = {
     "pre-flop": 0,
     "flop": 3,
@@ -343,9 +341,10 @@ const changeRound = async (gameId: number, req: Request): Promise<void> => {
     isHide: index >= revealedCountByRound[newRound],
   }));
 
+  //////////////
   if (newRound === "showdown") {
     const players = await Game.getPlayersInGame(gameId);
-
+  
     const formattedPlayers: Player[] = await Promise.all(
       players.map(async (player) => {
         const holeCardIds = [player.card1, player.card2];
@@ -354,31 +353,29 @@ const changeRound = async (gameId: number, req: Request): Promise<void> => {
             const card = await Game.getCardById(id);
             if (!card) throw new Error(`Card with ID ${id} not found for player ${player.player_id}`);
             return {
-              suit: card.suit as Card['suit'],
-              value: card.value as Card['value'],
+              suit: card.suit as Card["suit"],
+              value: card.value as Card["value"],
             };
           })
         );
-
+  
         return {
           id: player.player_id,
           holeCards,
         };
       })
     );
-
+  
     const results = evaluateHands(formattedPlayers, allCommunityCards);
-
+  
     const totalPot = await Game.getGamePot(gameId);
     const winners = results.winners;
     const chipsPerWinner = Math.floor(totalPot / winners.length);
-
+  
     for (const winner of winners) {
       await Game.addChipsToPlayer(winner.id, chipsPerWinner);
     }
-
-    await Game.updateGameShowdown(gameId);
-
+  
     const winnersIdAndChips = await Promise.all(
       winners.map(async (w) => {
         const updatedPlayer = await Game.getPlayerById(parseInt(w.id), gameId);
@@ -388,13 +385,12 @@ const changeRound = async (gameId: number, req: Request): Promise<void> => {
         };
       })
     );
-
+  
     io.emit(`game:${gameId}:showdown`, {
-      pot: 0,
-      currentBet: 0,
       winnersId: winnersIdAndChips,
     });
   }
+  //////////////
 
   await Game.resetPlayerActions(gameId);
   await Game.changeRound(gameId, newRound);
@@ -631,6 +627,61 @@ router.post("/call", async (req: Request, res: Response) => {
   }
 });
 
+router.post("/fold", async (req: Request, res: Response) => {
+  const { gameId, playerId } = req.body;
+
+  if (!gameId || !playerId) {
+    console.error("Fold: Invalid id");
+    return res.status(400).json({ error: "Missing gameId or playerId" });
+  }
+
+  try {
+    await Game.setPlayerFolded(playerId, gameId, true);
+    await Game.setHasActed(playerId);
+
+    const activePlayers = await Game.getActivePlayersInGame(gameId);
+    const io = req.app.get<Server>("io");
+
+    io.emit(`game:${gameId}:fold`, {
+      playerId,
+    });
+
+    if (activePlayers.length === 1) {
+      const winner = activePlayers[0];
+      const pot = await Game.getGamePot(gameId);
+
+      await Game.addChipsToPlayer(winner.player_id, pot);
+      await Game.updateGameShowdown(gameId);
+      await Game.changeRound(gameId, "pre-flop");
+      await Game.resetPlayerActions(gameId);
+
+      const updatedWinner = await Game.getPlayerById(winner.player_id, gameId);
+
+      io.emit(`game:${gameId}:showdown`, {
+        winnersId: [
+          {
+            id: updatedWinner.player_id,
+            chips: updatedWinner.chips,
+          },
+        ],
+      });
+
+      io.emit(`game:${gameId}:change-round`, {
+        newRound: "pre-flop",
+        communityCards: [],
+      });
+    } else {
+      await changeTurn(gameId, playerId, req);
+      await maybeChangeRound(gameId, req);
+    }
+
+    res.status(200).json({ message: "Player folded successfully" });
+  } catch (error) {
+    console.error("Fold error:", error);
+    res.status(500).json({ error: "Internal server error during fold" });
+  }
+});
+
 router.post("/start", async (req: Request, res: Response) => {
   const { gameId } = req.body;
 
@@ -663,5 +714,46 @@ router.post("/start", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error during start" });
   }
 });
+
+router.post("/reset", async (req: Request, res: Response) => {
+  const { gameId } = req.body;
+
+  if (!gameId) {
+    console.error("Reset: Missing gameId");
+    return res.status(400).json({ error: "Missing gameId" });
+  }
+
+  try {
+    const players = await Game.getPlayersInGame(gameId);
+
+    for (const player of players) {
+      await Game.setPlayerFolded(player.player_id, gameId, false);
+      await Game.setPlayerCurrentBet(player.player_id, 0, gameId);
+    }
+
+    await Game.setGamePot(gameId, 0);
+    await Game.setGameCurrentBet(gameId, 0);
+
+    await Game.changeRound(gameId, "pre-flop");
+    await Game.resetPlayerActions(gameId);
+
+    const io = req.app.get<Server>("io");
+    io.emit(`game:${gameId}:reset`, {
+      pot: 0,
+      currentBet: 0,
+      players,
+      communityCards: [],
+    });
+  
+    await dealCards(gameId, true, req);
+
+    res.status(200).json({ message: "Game reset and cards dealt successfully" });
+  } catch (error) {
+    console.error("Reset error:", error);
+    res.status(500).json({ error: "Internal server error during reset" });
+  }
+});
+
+
 
 export default router;

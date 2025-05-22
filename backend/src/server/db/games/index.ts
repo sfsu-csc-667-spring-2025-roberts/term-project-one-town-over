@@ -289,6 +289,41 @@ const updateGameShowdown = async (gameId: number) => {
   );
 };
 
+const setPlayerFolded = async (playerId: number, gameId: number, folded: boolean) => {
+  await db.none(
+    `UPDATE "game-players-test" SET has_folded = $3 WHERE player_id = $1 AND game_id = $2`,
+    [playerId, gameId, folded]
+  );
+};
+
+const getActivePlayersInGame = async (gameId: number) => {
+  return await db.any(
+    `SELECT * FROM "game-players-test" WHERE game_id = $1 AND has_folded = FALSE AND chips > 0`,
+    [gameId]
+  );
+}
+
+const setGamePot = async (gameId: number, pot: number) => {
+  await db.none(
+    `UPDATE "games-test" SET pot = $2 WHERE id = $1`,
+    [gameId, pot]
+  );
+};
+
+const setGameCurrentBet = async (gameId: number, currentBet: number) => {
+  await db.none(
+    `UPDATE "games-test" SET current_bet = $2 WHERE id = $1`,
+    [gameId, currentBet]
+  );
+};
+
+const setPlayerCurrentBet = async (playerId: number, gameId: number, bet: number) => {
+  await db.none(
+    `UPDATE "game-players-test" SET current_bet = $3 WHERE player_id = $1 AND game_id = $2`,
+    [playerId, gameId, bet]
+  );
+};
+
 export default {
   create,
   join,
@@ -319,4 +354,9 @@ export default {
   addChipsToPlayer,
   getCardById,
   updateGameShowdown,
+  setPlayerFolded,
+  getActivePlayersInGame,
+  setGamePot,
+  setGameCurrentBet,
+  setPlayerCurrentBet
 };
