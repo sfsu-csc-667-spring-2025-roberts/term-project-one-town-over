@@ -3,6 +3,7 @@ import React from "react";
 interface Card {
   suit: "hearts" | "diamonds" | "clubs" | "spades";
   value: string;
+  isHide: boolean;
 }
 
 interface Player {
@@ -45,6 +46,8 @@ const PokerTable: React.FC<PokerTableProps> = ({
       { top: "40%", left: "95%" }, // middle right - moved further right
       { top: "75%", left: "85%" }, // bottom right - moved further right
     ];
+
+    console.log("Community cards: ", communityCards);
 
     // Find the current player index
     const currentPlayerIndex = players.findIndex((p) => p.id === currentUserId);
@@ -124,7 +127,9 @@ const PokerTable: React.FC<PokerTableProps> = ({
       {/* Community cards - made smaller to prevent overlap */}
       <div className="absolute z-10 flex flex-wrap justify-center transform -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2">
         {communityCards.length > 0 ? (
-          communityCards.map((card, index) => renderCard(card, index))
+          communityCards.map((card, index) =>
+            card.isHide ? renderCardBack(String(index)) : renderCard(card, index)
+          )
         ) : (
           <div className="text-lg font-medium text-white">
             Waiting for cards...

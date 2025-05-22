@@ -20,7 +20,7 @@ router.post("/createAllCards", async (request: Request, response: Response) => {
     }
 
     const allCards = await db.any(`
-        INSERT INTO cards (round_id, color, name)
+        INSERT INTO cards (round_id, suit, value)
         VALUES ${queries.join(", ")}
         RETURNING *;
     `);

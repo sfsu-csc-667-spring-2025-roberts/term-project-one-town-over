@@ -109,6 +109,13 @@ const getGameRound = async (gameId: number) => {
   return round;
 };
 
+const getGamePot = async (gameId: number) => {
+  const { pot } = await db.one(`SELECT pot FROM "games-test" WHERE id = $1`, [
+    gameId,
+  ]);
+  return pot;
+};
+
 const isPlayerInGame = async (gameId: number, userId: number) => {
   const { count } = await db.one(
     `
@@ -134,10 +141,10 @@ const changeRound = async (gameId: number, newRound: string) => {
   );
 };
 
-const createCard = async (gameId: number, color: string, name: string) => {
+const createCard = async (gameId: number, suit: string, value: string) => {
   return db.any(
-      `INSERT INTO cards(game_id, color, name) VALUES($1, $2, $3) RETURNING *`,
-      [gameId, color, name]
+      `INSERT INTO cards(game_id, suit, value) VALUES($1, $2, $3) RETURNING *`,
+      [gameId, suit, value]
   );
 };
 
@@ -182,10 +189,10 @@ const setCurrentTurn = async (gameId: number, playerId: string): Promise<void> =
   );
 };
 
-const placeBet = async (playerId: string, amount: number) => {
+const placeBet = async (playerId: string, amount: number, gameId: number) => {
   return db.none(
-    `UPDATE "game-players-test" SET current_bet = current_bet + $1, chips = chips - $1 WHERE player_id = $2`,
-    [amount, playerId]
+    `UPDATE "game-players-test" SET current_bet = current_bet + $1, chips = chips - $1 WHERE player_id = $2 AND game_id = $3`,
+    [amount, playerId, gameId]
   );
 };
 
@@ -204,10 +211,10 @@ const getGameById = async (gameId: number) => {
   );
 }
 
-const getPlayerById = async (playerId: number) => {
-  return db.oneOrNone(
-    `SELECT * FROM "game-players-test" WHERE player_id = $1`,
-    [playerId]
+const getPlayerById = async (playerId: number, gameId: number) => {
+  return db.one(
+    `SELECT * FROM "game-players-test" WHERE player_id = $1 AND game_id = $2`,
+    [playerId, gameId]
   );
 }
 
@@ -218,21 +225,65 @@ const startGame = async (gameId: number) => {
   );
 }
 
-export const setHasActed = async (playerId: string, hasActed: boolean = true): Promise<void> => {
+const setHasActed = async (playerId: string, hasActed: boolean = true) => {
   await db.query(
     `UPDATE "game-players-test" SET has_acted = $1 WHERE player_id = $2`,
     [hasActed, playerId]
   );
 };
 
-const resetPlayerActions = async (gameId: number): Promise<void> => {
+const resetPlayerActions = async (gameId: number) => {
   await db.query(
     `
     UPDATE "game-players-test"
-    SET 
-      current_bet = 0,
+    SET
       has_acted = FALSE
     WHERE game_id = $1
+    `,
+    [gameId]
+  );
+};
+
+const getCommunityCards = async (gameId: number) => {
+  return await db.query(
+    `
+    SELECT *
+    FROM community_cards
+    WHERE game_id = $1
+    `,
+    [gameId]
+  );
+};
+
+const addChipsToPlayer = async (playerId: string, amount: number) => {
+  await db.query(
+    `
+    UPDATE "game-players-test"
+    SET chips = chips + $1
+    WHERE id = $2
+    `,
+    [amount, playerId]
+  );
+};
+
+const getCardById = async (cardId: number) => {
+  return await db.one(
+    `
+    SELECT *
+    FROM cards  
+    WHERE card_id = $1
+    `,
+    [cardId]
+  );
+};
+
+const updateGameShowdown = async (gameId: number) => {
+  await db.none(
+    `
+    UPDATE "games-test"
+    SET pot = 0,
+        current_bet = 0
+    WHERE id = $1
     `,
     [gameId]
   );
@@ -248,6 +299,7 @@ export default {
   hasPassword,
   getGameName,
   getGameRound,
+  getGamePot,
   isPlayerInGame,
   leaveGame,
   changeRound,
@@ -263,4 +315,8 @@ export default {
   startGame,
   setHasActed,
   resetPlayerActions,
+  getCommunityCards,
+  addChipsToPlayer,
+  getCardById,
+  updateGameShowdown,
 };

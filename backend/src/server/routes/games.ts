@@ -3,7 +3,7 @@ import { Request, Response, Router } from "express";
 import { Game } from "../db/index";
 import { Server } from "socket.io";
 import db from "../db/connection";
-import { createDeck, shuffle } from "./logic/hands";
+import { Card, Player, createDeck, evaluateHands, shuffle } from "./logic/hands";
 
 interface GameRecord {
   id: number;
@@ -280,8 +280,9 @@ router.post(
   }
 );
 
-const changeRound = async (gameId: number, req: Request): Promise<string> => {
+const changeRound = async (gameId: number, req: Request): Promise<void> => {
   const actualRound = await Game.getGameRound(gameId);
+
   let newRound: string;
 
   switch (actualRound) {
@@ -301,13 +302,107 @@ const changeRound = async (gameId: number, req: Request): Promise<string> => {
       newRound = "pre-flop";
   }
 
-  await Game.changeRound(gameId, newRound);
-  await Game.resetPlayerActions(gameId);
-
   const io = req.app.get<Server>("io");
-  io.emit(`game:${gameId}:change-round`, { newRound });
 
-  return newRound;
+  // Always load and prepare community cards
+  const communityResult = await db.one(
+    `SELECT * FROM community_cards WHERE game_id = $1`,
+    [gameId]
+  );
+
+  const cardIds = [
+    communityResult.card1,
+    communityResult.card2,
+    communityResult.card3,
+    communityResult.card4,
+    communityResult.card5,
+  ];
+
+  const allCommunityCards: Card[] = await Promise.all(
+    cardIds.map(async (id) => {
+      const card = await Game.getCardById(id);
+      if (!card) throw new Error(`Community card with ID ${id} not found`);
+      return {
+        suit: card.suit as Card['suit'],
+        value: card.value as Card['value'],
+      };
+    })
+  );
+
+  // Determine how many cards should be revealed in the current round
+  const revealedCountByRound: Record<string, number> = {
+    "pre-flop": 0,
+    "flop": 3,
+    "turn": 4,
+    "river": 5,
+    "showdown": 5,
+  };
+
+  const communityCardsWithVisibility = allCommunityCards.map((card, index) => ({
+    ...card,
+    isHide: index >= revealedCountByRound[newRound],
+  }));
+
+  if (newRound === "showdown") {
+    const players = await Game.getPlayersInGame(gameId);
+
+    const formattedPlayers: Player[] = await Promise.all(
+      players.map(async (player) => {
+        const holeCardIds = [player.card1, player.card2];
+        const holeCards = await Promise.all(
+          holeCardIds.map(async (id) => {
+            const card = await Game.getCardById(id);
+            if (!card) throw new Error(`Card with ID ${id} not found for player ${player.player_id}`);
+            return {
+              suit: card.suit as Card['suit'],
+              value: card.value as Card['value'],
+            };
+          })
+        );
+
+        return {
+          id: player.player_id,
+          holeCards,
+        };
+      })
+    );
+
+    const results = evaluateHands(formattedPlayers, allCommunityCards);
+
+    const totalPot = await Game.getGamePot(gameId);
+    const winners = results.winners;
+    const chipsPerWinner = Math.floor(totalPot / winners.length);
+
+    for (const winner of winners) {
+      await Game.addChipsToPlayer(winner.id, chipsPerWinner);
+    }
+
+    await Game.updateGameShowdown(gameId);
+
+    const winnersIdAndChips = await Promise.all(
+      winners.map(async (w) => {
+        const updatedPlayer = await Game.getPlayerById(parseInt(w.id), gameId);
+        return {
+          id: updatedPlayer.player_id,
+          chips: updatedPlayer.chips,
+        };
+      })
+    );
+
+    io.emit(`game:${gameId}:showdown`, {
+      pot: 0,
+      currentBet: 0,
+      winnersId: winnersIdAndChips,
+    });
+  }
+
+  await Game.resetPlayerActions(gameId);
+  await Game.changeRound(gameId, newRound);
+
+  io.emit(`game:${gameId}:change-round`, {
+    newRound,
+    communityCards: communityCardsWithVisibility,
+  });
 };
 
 const maybeChangeRound = async (gameId: number, req: Request): Promise<void> => {
@@ -445,9 +540,10 @@ router.post("/bet", async (req: Request, res: Response) => {
   }
 
   try {
-    await Game.placeBet(playerId, amount);
+    await Game.placeBet(playerId, amount, gameId);
     await Game.updateGameBet(gameId, amount);
     await Game.setHasActed(playerId);
+    await changeTurn(gameId, playerId, req);
     await maybeChangeRound(gameId, req);
 
     const io = req.app.get<Server>("io");
@@ -456,8 +552,6 @@ router.post("/bet", async (req: Request, res: Response) => {
       playerId,
       amount,
     });
-
-    await changeTurn(gameId, playerId, req);
 
     res.status(200).json({ message: "Bet placed and turn updated" });
   } catch (error) {
@@ -474,9 +568,12 @@ router.post("/raise", async (req: Request, res: Response) => {
   }
 
   try {
-    await Game.placeBet(playerId, amount);
+    console.log("", playerId, gameId);
+
+    await Game.placeBet(playerId, amount, gameId);
     await Game.updateGameBet(gameId, amount);
     await Game.setHasActed(playerId);
+    await changeTurn(gameId, playerId, req);
     await maybeChangeRound(gameId, req);
 
     const io = req.app.get<Server>("io");
@@ -485,8 +582,6 @@ router.post("/raise", async (req: Request, res: Response) => {
       playerId,
       amount,
     });
-
-    await changeTurn(gameId, playerId, req);
 
     res.status(200).json({ message: "Player raised successfully" });
   } catch (error) {
@@ -499,21 +594,27 @@ router.post("/call", async (req: Request, res: Response) => {
   const { gameId, playerId } = req.body;
 
   if (!gameId || !playerId) {
+    console.error("Call: Invalid id");
     return res.status(400).json({ error: "Missing gameId or playerId" });
   }
 
   try {
     const game = await Game.getGameById(gameId);
-    const player = await Game.getPlayerById(playerId);
+    const player = await Game.getPlayerById(playerId, gameId);
 
     const callAmount = game.current_bet - player.current_bet;
 
+    console.log("Player current bet: ", player.current_bet);
+    console.log("Game current bet", game.current_bet);
+
     if (callAmount <= 0 || callAmount > player.chips) {
+      console.error(`Call: Invalid amount ---\nCall amount: ${callAmount}\nChips player: ${player.chips}`);
       return res.status(400).json({ error: "Invalid call amount" });
     }
 
-    await Game.placeBet(playerId, callAmount);
+    await Game.placeBet(playerId, callAmount, gameId);
     await Game.setHasActed(playerId);
+    await changeTurn(gameId, playerId, req);
     await maybeChangeRound(gameId, req);
 
     const io = req.app.get<Server>("io");
@@ -522,8 +623,6 @@ router.post("/call", async (req: Request, res: Response) => {
       playerId,
       callAmount,
     });
-
-    await changeTurn(gameId, playerId, req);
 
     res.status(200).json({ message: "Player called successfully" });
   } catch (error) {

@@ -15,6 +15,7 @@ import GameInfo from "../components/GameInfo";
 interface Card {
   suit: "hearts" | "diamonds" | "clubs" | "spades";
   value: string;
+  isHide: boolean;
 }
 
 interface Player {
@@ -56,6 +57,11 @@ interface ChatMessage {
 interface ServerPlayer {
   player_id: string;
   email: string;
+}
+
+interface WinnerData {
+  id: string;
+  chips: number;
 }
 
 const initialGameState: GameState = {
@@ -250,13 +256,48 @@ const GameRoom: React.FC = () => {
         };
       });
     });
-    
 
-    // Listen for changing round
+    socketRef.current.on(
+      `game:${gameId}:showdown`,
+      (data: { pot: number; currentBet: number; winnersId: WinnerData[] }) => {
+        setGame((prevState) => {
+          const newState = { ...prevState };
+    
+          newState.pot = data.pot;
+          newState.currentBet = data.currentBet;
+    
+          newState.players = newState.players.map((p) => {
+            const winner = data.winnersId.find((w: WinnerData) => w.id === p.id);
+    
+            return {
+              ...p,
+              chips: winner ? winner.chips : p.chips,
+              currentBet: 0,
+            };
+          });
+    
+          return newState;
+        });
+    
+        setCurrentPlayer((prev) => {
+          if (!prev) return prev;
+    
+          const winner = data.winnersId.find((w: WinnerData) => w.id === prev.id);
+    
+          return {
+            ...prev,
+            chips: winner ? winner.chips : prev.chips,
+            currentBet: 0,
+          };
+        });
+      }
+    );
+
     socketRef.current.on(`game:${gameId}:change-round`, (data) => {
       setGame((prevState) => {
         const newState = { ...prevState };
         newState.round = data.newRound;
+        newState.communityCards = data.communityCards;
         return newState;
       });
     });
@@ -285,20 +326,26 @@ const GameRoom: React.FC = () => {
           return { ...prev, isTurn: false };
         }
       });
-    });    
+    });
 
     socketRef.current.on(`game:${gameId}:deal`, (data) => {
       setGame((prevState) => {
         const newState = { ...prevState };
-
-        newState.communityCards = data.communityCards;
-
+    
+        newState.communityCards = data.communityCards.map((card: any) => ({
+          ...card,
+          isHide: true,
+        }));
+    
         newState.players = newState.players.map((player) => {
           const updatedPlayer = data.players.find((p: any) => p.id === player.id);
           if (updatedPlayer) {
             return {
               ...player,
-              hand: updatedPlayer.actualCards,
+              hand: updatedPlayer.actualCards.map((card: any) => ({
+                ...card,
+                isHide: true,
+              })),
             };
           }
           return player;
@@ -306,7 +353,7 @@ const GameRoom: React.FC = () => {
     
         return newState;
       });
-  
+    
       setCurrentPlayer((prev) => {
         if (!prev) return null;
     
@@ -314,13 +361,16 @@ const GameRoom: React.FC = () => {
         if (updatedPlayer) {
           return {
             ...prev,
-            hand: updatedPlayer.actualCards,
+            hand: updatedPlayer.actualCards.map((card: any) => ({
+              ...card,
+              isHide: true,
+            })),
           };
         }
     
         return prev;
       });
-    });
+    });    
 
     // Listen for player leave events
     socketRef.current.on(`game:${gameId}:player-left`, (data) => {
@@ -419,8 +469,8 @@ const GameRoom: React.FC = () => {
                 currentBet: 0,
                 position: 0,
                 hand: [
-                  { suit: "hearts" as const, value: "A" },
-                  { suit: "diamonds" as const, value: "K" },
+                  { suit: "hearts" as const, value: "A", isHide: false },
+                  { suit: "diamonds" as const, value: "K", isHide: false },
                 ],
               },
             ],
@@ -449,8 +499,8 @@ const GameRoom: React.FC = () => {
             currentBet: 0,
             position: 0,
             hand: [
-              { suit: "hearts" as const, value: "A" },
-              { suit: "diamonds" as const, value: "K" },
+              { suit: "hearts" as const, value: "A", isHide: false },
+              { suit: "diamonds" as const, value: "K", isHide: false },
             ],
           };
 
