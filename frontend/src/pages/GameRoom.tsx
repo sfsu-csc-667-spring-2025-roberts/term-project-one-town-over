@@ -268,29 +268,31 @@ const GameRoom: React.FC = () => {
     });
 
     socketRef.current.on(
-      `game:${gameId}:showdown`,
-      (data: { pot: number; currentBet: number; winnersId: WinnerData[] }) => {
+      `game:${gameId}:evaluate`,
+      (data: { winnersId: WinnerData[] }) => {
         setGame((prevState) => {
           const newState = { ...prevState };
-
-          newState.players = newState.players.map((p) => {
-            const winner = data.winnersId.find((w: WinnerData) => w.id === p.id);
     
+          newState.players = newState.players.map((p) => {
+            const winner = data.winnersId.find((w) => w.id === p.id);
             return {
               ...p,
               chips: winner ? winner.chips : p.chips,
               currentBet: 0,
             };
           });
+
+          console.log("New game state:", newState);
     
           return newState;
         });
     
         setCurrentPlayer((prev) => {
           if (!prev) return prev;
-    
-          const winner = data.winnersId.find((w: WinnerData) => w.id === prev.id);
-    
+          const winner = data.winnersId.find((w) => w.id === prev.id);
+
+          console.log("New winner:", winner);
+
           return {
             ...prev,
             chips: winner ? winner.chips : prev.chips,
@@ -732,6 +734,7 @@ const GameRoom: React.FC = () => {
                 dealerPosition={game.dealerPosition}
                 currentTurn={game.currentTurn}
                 currentUserId={user?.id || ""}
+                round={game.round}
               />
             </div>
 

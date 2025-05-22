@@ -255,14 +255,14 @@ const getCommunityCards = async (gameId: number) => {
   );
 };
 
-const addChipsToPlayer = async (playerId: string, amount: number) => {
+const addChipsToPlayer = async (playerId: string, amount: number, gameId: number) => {
   await db.query(
     `
     UPDATE "game-players-test"
     SET chips = chips + $1
-    WHERE id = $2
+    WHERE player_id = $2 AND game_id = $3
     `,
-    [amount, playerId]
+    [amount, playerId, gameId]
   );
 };
 

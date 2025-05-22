@@ -25,6 +25,7 @@ interface PokerTableProps {
   dealerPosition: number;
   currentTurn: string | null;
   currentUserId: string;
+  round: string;
 }
 
 const PokerTable: React.FC<PokerTableProps> = ({
@@ -33,6 +34,7 @@ const PokerTable: React.FC<PokerTableProps> = ({
   // dealerPosition,
   // currentTurn,
   currentUserId,
+  round,
 }) => {
   // Calculate positions for players around the table
   const getPlayerPositions = () => {
@@ -165,11 +167,16 @@ const PokerTable: React.FC<PokerTableProps> = ({
                 // Current player's cards - face up
                 player.hand.map((card, index) => renderCard(card, index))
               ) : player.hand ? (
-                // Other players' cards - face down
-                [
-                  renderCardBack(`${player.id}-card-1`),
-                  renderCardBack(`${player.id}-card-2`),
-                ]
+                round === "showdown" ? (
+                  // Other players' cards - revealed in showdown
+                  player.hand.map((card, index) => renderCard(card, index))
+                ) : (
+                  // Other players' cards - face down
+                  [
+                    renderCardBack(`${player.id}-card-1`),
+                    renderCardBack(`${player.id}-card-2`),
+                  ]
+                )
               ) : (
                 <div className="text-xs text-gray-500">No cards</div>
               )}
