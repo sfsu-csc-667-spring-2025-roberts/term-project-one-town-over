@@ -3,6 +3,7 @@ import React from "react";
 interface Card {
   suit: "hearts" | "diamonds" | "clubs" | "spades";
   value: string;
+  isHide: boolean;
 }
 
 interface Player {
@@ -16,6 +17,7 @@ interface Player {
   hasFolded: boolean;
   currentBet: number;
   position: number;
+  hasLoose: boolean;
 }
 
 interface PokerTableProps {
@@ -24,6 +26,7 @@ interface PokerTableProps {
   dealerPosition: number;
   currentTurn: string | null;
   currentUserId: string;
+  round: string;
 }
 
 const PokerTable: React.FC<PokerTableProps> = ({
@@ -32,6 +35,7 @@ const PokerTable: React.FC<PokerTableProps> = ({
   // dealerPosition,
   // currentTurn,
   currentUserId,
+  round,
 }) => {
   // Calculate positions for players around the table
   const getPlayerPositions = () => {
@@ -45,6 +49,8 @@ const PokerTable: React.FC<PokerTableProps> = ({
       { top: "40%", left: "95%" }, // middle right - moved further right
       { top: "75%", left: "85%" }, // bottom right - moved further right
     ];
+
+    console.log("Community cards: ", communityCards);
 
     // Find the current player index
     const currentPlayerIndex = players.findIndex((p) => p.id === currentUserId);
@@ -124,7 +130,9 @@ const PokerTable: React.FC<PokerTableProps> = ({
       {/* Community cards - made smaller to prevent overlap */}
       <div className="absolute z-10 flex flex-wrap justify-center transform -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2">
         {communityCards.length > 0 ? (
-          communityCards.map((card, index) => renderCard(card, index))
+          communityCards.map((card, index) =>
+            card.isHide ? renderCardBack(String(index)) : renderCard(card, index)
+          )
         ) : (
           <div className="text-lg font-medium text-white">
             Waiting for cards...
@@ -160,11 +168,16 @@ const PokerTable: React.FC<PokerTableProps> = ({
                 // Current player's cards - face up
                 player.hand.map((card, index) => renderCard(card, index))
               ) : player.hand ? (
-                // Other players' cards - face down
-                [
-                  renderCardBack(`${player.id}-card-1`),
-                  renderCardBack(`${player.id}-card-2`),
-                ]
+                round === "showdown" ? (
+                  // Other players' cards - revealed in showdown
+                  player.hand.map((card, index) => renderCard(card, index))
+                ) : (
+                  // Other players' cards - face down
+                  [
+                    renderCardBack(`${player.id}-card-1`),
+                    renderCardBack(`${player.id}-card-2`),
+                  ]
+                )
               ) : (
                 <div className="text-xs text-gray-500">No cards</div>
               )}
@@ -188,6 +201,12 @@ const PokerTable: React.FC<PokerTableProps> = ({
             {player.hasFolded && (
               <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/30">
                 <span className="font-bold text-white">FOLD</span>
+              </div>
+            )}
+
+            {player.hasLoose && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/30">
+                <span className="font-bold text-white">LOST</span>
               </div>
             )}
           </div>
