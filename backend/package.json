@@ -33,7 +33,6 @@
     "@types/connect-livereload": "^0.6.3",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/cookie-parser": "^1.4.8",
-    "@types/express": "^5.0.1",
     "@types/express-session": "^1.18.1",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/livereload": "^0.9.5",
@@ -58,6 +57,7 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "@types/express": "^4.17.21",
     "bcrypt": "^5.1.1",
     "connect-livereload": "^0.6.1",
     "connect-pg-simple": "^10.0.0",
@@ -73,6 +73,7 @@
     "node-pg-migrate": "^7.9.1",
     "pg": "^8.14.1",
     "pg-promise": "^11.13.0",
+    "poker-evaluator": "^2.1.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"
   },

@@ -15,6 +15,7 @@ import GameInfo from "../components/GameInfo";
 interface Card {
   suit: "hearts" | "diamonds" | "clubs" | "spades";
   value: string;
+  isHide: boolean;
 }
 
 interface Player {
@@ -28,6 +29,7 @@ interface Player {
   hasFolded: boolean;
   currentBet: number;
   position: number;
+  hasLoose: boolean;
 }
 
 interface GameState {
@@ -56,6 +58,11 @@ interface ChatMessage {
 interface ServerPlayer {
   player_id: string;
   email: string;
+}
+
+interface WinnerData {
+  id: string;
+  chips: number;
 }
 
 const initialGameState: GameState = {
@@ -120,12 +127,342 @@ const GameRoom: React.FC = () => {
             hasFolded: false,
             currentBet: 0,
             position: newState.players.length,
+            hasLoose: false,
           });
         }
 
         return newState;
       });
     });
+
+    socketRef.current.on(`game:${gameId}:start`, () => {
+      setGame((prev) => ({
+        ...prev,
+        status: "playing",
+      }));
+      console.log("Game started!");
+    });
+
+    socketRef.current.on(`game:${gameId}:eliminated`, ({ playerId }) => {
+      setGame((prev) => {
+        const newState = { ...prev };
+        newState.players = newState.players.map((p) =>
+          p.id === playerId ? { ...p, hasLoose: true } : p
+        );
+        return newState;
+      });
+      setCurrentPlayer((prev) => {
+        if (!prev || prev.id !== playerId) return prev;
+    
+        return {
+          ...prev,
+          hasLoose: true,
+        };
+      });
+    });
+
+    socketRef.current.on(`game:${gameId}:only-one-player-left`, (data: { winnerId: string }) => {
+        setGame((prevGame) => {
+          if (!prevGame) return prevGame;
+  
+          return {
+            ...prevGame,
+            winner: data.winnerId,
+          };
+        });
+      }
+    );
+
+    socketRef.current.on(`game:${gameId}:check`, (data) => {
+      const { playerId } = data;
+    
+      setGame((prev) => {
+        const newState = { ...prev };
+
+        newState.players = newState.players.map((player) => {
+          if (player.id === playerId) {
+            return {
+              ...player,
+              lastAction: "check",
+            };
+          }
+          return player;
+        });
+
+        return newState;
+      });
+    });
+
+    socketRef.current.on(`game:${gameId}:bet`, ({ playerId, amount }) => {
+      setGame((prevGame) => {
+        const updatedGame = { ...prevGame };
+    
+        updatedGame.players = updatedGame.players.map((p) => {
+          if (p.id === playerId) {
+            return {
+              ...p,
+              chips: p.chips - amount,
+              currentBet: p.currentBet + amount,
+            };
+          }
+          return p;
+        });
+
+        updatedGame.pot += amount;
+
+        if (amount > updatedGame.currentBet) {
+          updatedGame.currentBet = amount;
+        }
+    
+        return updatedGame;
+      });
+    
+      setCurrentPlayer((prev) => {
+        if (!prev || prev.id !== playerId) return prev;
+    
+        return {
+          ...prev,
+          chips: prev.chips - amount,
+          currentBet: prev.currentBet + amount,
+        };
+      });
+    });  
+    
+    socketRef.current.on(`game:${gameId}:raise`, ({ playerId, amount }) => {
+      setGame((prevGame) => {
+        const updatedGame = { ...prevGame };
+
+        updatedGame.players = updatedGame.players.map((p) => {
+          if (p.id === playerId) {
+            return {
+              ...p,
+              chips: p.chips - amount,
+              currentBet: p.currentBet + amount,
+            };
+          }
+          return p;
+        });
+
+        updatedGame.pot += amount;
+        updatedGame.currentBet += amount;
+    
+        return updatedGame;
+      });
+
+      setCurrentPlayer((prev) => {
+        if (!prev || prev.id !== playerId) return prev;
+        return {
+          ...prev,
+          chips: prev.chips - amount,
+          currentBet: prev.currentBet + amount,
+        };
+      });
+    });
+
+    socketRef.current.on(`game:${gameId}:call`, ({ playerId, callAmount }) => {
+      setGame((prevGame) => {
+        const updatedGame = { ...prevGame };
+    
+        updatedGame.players = updatedGame.players.map((p) => {
+          if (p.id === playerId) {
+            return {
+              ...p,
+              chips: p.chips - callAmount,
+              currentBet: p.currentBet + callAmount,
+            };
+          }
+          return p;
+        });
+
+        updatedGame.pot += callAmount;
+    
+        return updatedGame;
+      });
+
+      setCurrentPlayer((prev) => {
+        if (!prev || prev.id !== playerId) return prev;
+        return {
+          ...prev,
+          chips: prev.chips - callAmount,
+          currentBet: prev.currentBet + callAmount,
+        };
+      });
+    });
+
+    socketRef.current.on(`game:${gameId}:fold`, ({ playerId }) => {
+      setGame((prevGame) => {
+        const updatedGame = { ...prevGame };
+        updatedGame.players = updatedGame.players.map((p) =>
+          p.id === playerId ? { ...p, hasFolded: true } : p
+        );
+        return updatedGame;
+      });
+    });
+
+    socketRef.current.on(
+      `game:${gameId}:evaluate`,
+      (data: { winnersId: WinnerData[] }) => {
+        setGame((prevState) => {
+          const newState = { ...prevState };
+    
+          newState.players = newState.players.map((p) => {
+            const winner = data.winnersId.find((w) => w.id === p.id);
+            return {
+              ...p,
+              chips: winner ? winner.chips : p.chips,
+              currentBet: 0,
+            };
+          });
+
+          console.log("New game state:", newState);
+    
+          return newState;
+        });
+    
+        setCurrentPlayer((prev) => {
+          if (!prev) return prev;
+          const winner = data.winnersId.find((w) => w.id === prev.id);
+
+          console.log("New winner:", winner);
+
+          return {
+            ...prev,
+            chips: winner ? winner.chips : prev.chips,
+            currentBet: 0,
+          };
+        });
+      }
+    );
+
+    socketRef.current.on(
+      `game:${gameId}:reset`,
+      (data: {
+        pot: number;
+        currentBet: number;
+        communityCards: Card[];
+        players: {
+          id: string;
+          chips: number;
+          hand: Card[];
+        }[];
+      }) => {
+        setGame((prevState) => {
+          const newState = { ...prevState };
+    
+          newState.pot = data.pot;
+          newState.currentBet = data.currentBet;
+          newState.communityCards = data.communityCards;
+          newState.round = "pre-flop";
+    
+          newState.players = newState.players.map((p) => {
+            const updated = data.players.find((dp) => dp.id === p.id);
+            if (updated) {
+              return {
+                ...p,
+                chips: updated.chips,
+                currentBet: 0,
+                hasFolded: false,
+                hand: updated.hand,
+              };
+            }
+            return p;
+          });
+    
+          return newState;
+        });
+    
+        setCurrentPlayer((prev) => {
+          if (!prev) return null;
+          const updated = data.players.find((p) => p.id === prev.id);
+          if (!updated) return prev;
+          return {
+            ...prev,
+            chips: updated.chips,
+            currentBet: 0,
+            hand: updated.hand,
+          };
+        });
+      }
+    );
+
+    socketRef.current.on(`game:${gameId}:change-round`, (data) => {
+      setGame((prevState) => {
+        const newState = { ...prevState };
+        newState.round = data.newRound;
+        newState.communityCards = data.communityCards;
+        return newState;
+      });
+    });
+
+    socketRef.current.on(`game:${gameId}:change-turn`, (data) => {
+      const newPlayerId = data.newPlayer;
+    
+      setGame(prev => {
+        const updatedPlayers = prev.players.map(player => ({
+          ...player,
+          isTurn: player.id === newPlayerId,
+        }));
+    
+        return {
+          ...prev,
+          currentTurn: newPlayerId,
+          players: updatedPlayers,
+        };
+      });
+
+      setCurrentPlayer(prev => {
+        if (!prev) return null;
+        if (prev.id === newPlayerId) {
+          return { ...prev, isTurn: true };
+        } else {
+          return { ...prev, isTurn: false };
+        }
+      });
+    });
+
+    socketRef.current.on(`game:${gameId}:deal`, (data) => {
+      setGame((prevState) => {
+        const newState = { ...prevState };
+    
+        newState.communityCards = data.communityCards.map((card: any) => ({
+          ...card,
+          isHide: true,
+        }));
+    
+        newState.players = newState.players.map((player) => {
+          const updatedPlayer = data.players.find((p: any) => p.id === player.id);
+          if (updatedPlayer) {
+            return {
+              ...player,
+              hand: updatedPlayer.actualCards.map((card: any) => ({
+                ...card,
+                isHide: true,
+              })),
+            };
+          }
+          return player;
+        });
+    
+        return newState;
+      });
+    
+      setCurrentPlayer((prev) => {
+        if (!prev) return null;
+    
+        const updatedPlayer = data.players.find((p: any) => p.id === prev.id);
+        if (updatedPlayer) {
+          return {
+            ...prev,
+            hand: updatedPlayer.actualCards.map((card: any) => ({
+              ...card,
+              isHide: true,
+            })),
+          };
+        }
+    
+        return prev;
+      });
+    });    
 
     // Listen for player leave events
     socketRef.current.on(`game:${gameId}:player-left`, (data) => {
@@ -162,12 +499,15 @@ const GameRoom: React.FC = () => {
             headers: { Accept: "application/json" },
           });
 
+          console.log("Data: ", response);
+
           if (response.data && response.data.players) {
             // Create a game state with the available data
             const gameStateFromServer = {
               ...initialGameState,
               id: gameId || "",
               name: response.data.name || `Game ${gameId}`,
+              round: response.data.round,
               players: response.data.players.map((p: ServerPlayer) => ({
                 id: p.player_id,
                 email: p.email,
@@ -179,6 +519,11 @@ const GameRoom: React.FC = () => {
                 currentBet: 0,
                 position: 0, // Will be adjusted
               })),
+              currentBet: response.data.game.current_bet,
+              smallBlind: response.data.game.small_blind,
+              bigBlind: response.data.game.big_blind,
+              pot: response.data.game.pot,
+              currentTurn: response.data.game.current_turn
             };
 
             // Adjust player positions
@@ -213,11 +558,12 @@ const GameRoom: React.FC = () => {
                 isDealer: true,
                 isTurn: true,
                 hasFolded: false,
+                hasLoose: false,
                 currentBet: 0,
                 position: 0,
                 hand: [
-                  { suit: "hearts" as const, value: "A" },
-                  { suit: "diamonds" as const, value: "K" },
+                  { suit: "hearts" as const, value: "A", isHide: false },
+                  { suit: "diamonds" as const, value: "K", isHide: false },
                 ],
               },
             ],
@@ -243,11 +589,12 @@ const GameRoom: React.FC = () => {
             isDealer: true,
             isTurn: true,
             hasFolded: false,
+            hasLoose: false,
             currentBet: 0,
             position: 0,
             hand: [
-              { suit: "hearts" as const, value: "A" },
-              { suit: "diamonds" as const, value: "K" },
+              { suit: "hearts" as const, value: "A", isHide: false },
+              { suit: "diamonds" as const, value: "K", isHide: false },
             ],
           };
 
@@ -265,29 +612,87 @@ const GameRoom: React.FC = () => {
   }, [gameId, user?.id, user?.email]);
 
   // Game actions
-  const handleBet = (amount: number) => {
-    console.log("Betting", amount);
-    // This would be implemented with actual game logic
+  const handleBet = async (amount: number) => {
+    try {
+      await axios.post("/games/bet", {
+        gameId: game.id,
+        playerId: currentPlayer?.id,
+        amount,
+      });
+      console.log("Bet sent:", amount);
+    } catch (err) {
+      console.error("Failed to bet:", err);
+    }
+  };  
+
+  const handleCall = async () => {
+    try {
+      await axios.post("/games/call", {
+        gameId: game.id,
+        playerId: currentPlayer?.id,
+      });
+      console.log("Call sent");
+    } catch (err) {
+      console.error("Failed to call:", err);
+    }
   };
 
-  const handleCall = () => {
-    console.log("Calling");
-    // This would be implemented with actual game logic
-  };
-
-  const handleCheck = () => {
+  const handleCheck = async () => {
     console.log("Checking");
-    // This would be implemented with actual game logic
+    try {
+      await axios.post("/games/check", { gameId: gameId, playerId: currentPlayer?.id });
+    } catch (error) {
+      console.error("Error checking:", error);
+      toast.error("Failed to check");
+    }
   };
 
-  const handleFold = () => {
-    console.log("Folding");
-    // This would be implemented with actual game logic
+  const handleFold = async () => {
+    try {
+      const response = await axios.post("/games/fold", {
+        gameId: game.id,
+        playerId: currentPlayer?.id,
+      });
+  
+      console.log("Fold successful:", response.data);
+    } catch (error) {
+      console.error("Error folding:", error);
+    }
   };
 
-  const handleRaise = (amount: number) => {
-    console.log("Raising", amount);
-    // This would be implemented with actual game logic
+  const handleRaise = async (amount: number) => {
+    try {
+      await axios.post("/games/raise", {
+        gameId: game.id,
+        playerId: currentPlayer?.id,
+        amount,
+      });
+      console.log("Raise sent:", amount);
+    } catch (err) {
+      console.error("Failed to raise:", err);
+    }
+  }; 
+  
+  const handleStartGame = async () => {
+    try {
+      await axios.post("/games/start", {
+        gameId: game.id
+      });
+      console.log("Game started");
+    } catch (err) {
+      console.error("Failed to start:", err);
+    }
+  };
+
+  const handleResetGame = async () => {
+    try {
+      await axios.post("/games/reset", {
+        gameId: game.id
+      });
+      console.log("Game reset");
+    } catch (err) {
+      console.error("Failed to reset:", err);
+    }
   };
 
   const handleLeaveGame = async () => {
@@ -331,6 +736,12 @@ const GameRoom: React.FC = () => {
     <div className="container px-4 py-4 mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">{game.name}</h1>
+        <button onClick={handleStartGame} className={game.status === "playing" ? "btn" : "btn btn-secondary"} disabled={game.status === "playing" && true}>
+          Start Game
+        </button>
+        <button onClick={handleResetGame} className={game.round !== "showdown" ? "btn" : "btn btn-secondary"} disabled={game.round !== "showdown" && true}>
+          Continue
+        </button>
         <button onClick={handleLeaveGame} className="btn btn-secondary">
           Leave Game
         </button>
@@ -357,6 +768,7 @@ const GameRoom: React.FC = () => {
                 dealerPosition={game.dealerPosition}
                 currentTurn={game.currentTurn}
                 currentUserId={user?.id || ""}
+                round={game.round}
               />
             </div>
 
@@ -411,6 +823,8 @@ const GameRoom: React.FC = () => {
                       playerBet={currentPlayer.currentBet}
                       playerChips={currentPlayer.chips}
                       minRaise={game.bigBlind}
+                      round={game.round}
+                      hasLoose={currentPlayer.hasLoose}
                     />
                   </div>
                 </div>
